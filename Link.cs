@@ -59,7 +59,6 @@
             this.password = password;
             this.at = at;
             this.apiKey = apiKey;
-            this.devicesCache = this.devicesCache ?? new Dictionary<string, Device>();
         }
 
         public Uri ApiUri => new Uri($"https://{this.region}-api.coolkit.cc:8080/api");

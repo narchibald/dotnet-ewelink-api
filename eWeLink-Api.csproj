@@ -6,6 +6,11 @@
     <AssemblyName>eWeLink.Api</AssemblyName>
     <LangVersion>8.0</LangVersion>
     <Nullable>enable</Nullable>
+    <Version>0.3.0</Version>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Description>This is a sudo port of the node js library [eWeLink-api](https://github.com/skydiver/ewelink-api) to .Net.</Description>
+    <PackageProjectUrl>https://github.com/narchibald/dotnet-ewelink-api</PackageProjectUrl>
+    <PackageTags>dotnet ewelink sonoff api</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
