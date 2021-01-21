@@ -22,21 +22,21 @@
 
         private const string AppSecret = "4G91qSoboqYO4Y0XJ0LPPKIsq8reHdfa";
 
-        private static readonly HttpClient HttpClient = new HttpClient();
+        private static readonly HttpClient HttpClient = new ();
 
-        private readonly Dictionary<string, Device> devicesCache = new Dictionary<string, Device>();
+        private readonly Dictionary<string, Device> devicesCache = new ();
 
         private string? region = "us";
 
-        private string? email = null;
+        private string? email;
 
-        private string? phoneNumber = null;
+        private string? phoneNumber;
 
-        private string? password = null;
+        private string? password;
 
-        private string? at = null;
+        private string? at;
 
-        private string? apiKey = null;
+        private string? apiKey;
 
         public Link(
             string? email = null,
@@ -90,7 +90,7 @@
             return null;
         }
 
-        public async Task<(string Email, string Region)> GetRegion()
+        public async Task<(string? Email, string? Region)> GetRegion()
         {
             if (string.IsNullOrWhiteSpace(this.email))
             {
@@ -104,7 +104,7 @@
 
             var credentials = await this.GetCredentials();
 
-            return (credentials.User.Email, credentials.Region);
+            return (credentials.User?.Email, credentials.Region);
         }
 
         public Task<Device> GetDevice(string deviceId)
@@ -285,10 +285,10 @@
             var deviceInfoList = this.GetFirmwareUpdateInfo(devices);
 
             dynamic response = await this.MakeRequest(
-                "/app",
-                this.OtaUri,
-                new { deviceInfoList = deviceInfoList },
-                method: HttpMethod.Post);
+                                   "/app",
+                                   this.OtaUri,
+                                   new { deviceInfoList = deviceInfoList },
+                                   method: HttpMethod.Post);
 
             int returnCode = response.rtnCode;
             JToken token = response.upgradeInfoList;
@@ -305,7 +305,7 @@
             return new UpdateCheckResult(info.Version != device.Paramaters.FirmWareVersion, info);
         }
 
-        public async Task<string> GetFirmwareVersion(string deviceId)
+        public async Task<string?> GetFirmwareVersion(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
             return device.Paramaters.FirmWareVersion;

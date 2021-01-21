@@ -13,7 +13,7 @@
         public string? Type { get; set; }
 
         [JsonProperty("at")]
-        public DateTime? At { get; set; }
+        public string? At { get; set; }
 
         [JsonProperty("coolkit_timer_type")]
         public string? CoolkitTimerType { get; set; }
