@@ -5,6 +5,7 @@ This is a sudo port of the node js library [eWeLink-api](https://github.com/skyd
 
 * .Net Standard 2.1
 * .Net Standard 2.0
+* .Net 5
 
 ## Getting started
 
