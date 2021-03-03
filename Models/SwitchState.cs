@@ -1,8 +1,22 @@
 ﻿namespace EWeLink.Api.Models
 {
+    using System.Runtime.Serialization;
+
     public enum SwitchState
     {
+        [EnumMember(Value = "on")]
         On,
-        Off
+
+        [EnumMember(Value = "off")]
+        Off,
+    }
+
+    public enum SwitchStateChange
+    {
+        Toggle,
+
+        On,
+
+        Off,
     }
 }

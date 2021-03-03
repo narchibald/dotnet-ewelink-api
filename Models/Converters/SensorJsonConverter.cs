@@ -1,4 +1,4 @@
-﻿namespace EWeLink.Api.Models
+﻿namespace EWeLink.Api.Models.Converters
 {
     using System;
 

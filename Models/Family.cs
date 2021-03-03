@@ -4,6 +4,9 @@
 
     public class Family
     {
+        [JsonProperty("room")]
+        public Room? Room { get; set; }
+
         [JsonProperty("id")]
         public string? Id { get; set; }
 

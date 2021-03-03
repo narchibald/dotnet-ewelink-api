@@ -2,7 +2,7 @@
 {
     public class SensorData
     {
-        public SensorData(string deviceId, SensorType type, double value)
+        public SensorData(string deviceId, SensorType type, decimal value)
         {
             this.DeviceId = deviceId;
             this.Type = type;
@@ -13,6 +13,6 @@
 
         public SensorType Type { get; }
 
-        public double Value { get; }
+        public decimal Value { get; }
     }
 }

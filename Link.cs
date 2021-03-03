@@ -12,6 +12,8 @@
     using System.Threading.Tasks;
 
     using EWeLink.Api.Models;
+    using EWeLink.Api.Models.Devices;
+    using EWeLink.Api.Models.Parameters;
 
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
@@ -71,20 +73,23 @@
         {
             var device = await this.GetDevice(deviceId, true);
 
-            var parameters = device.Paramaters;
-            if (!parameters.CurrentTemperature.HasValue && !parameters.CurrentHumidity.HasValue)
+            if (device is IThermostatDevice thermostatDevice)
             {
-                return null;
-            }
+                var parameters = thermostatDevice.Parameters;
+                if (!parameters.Temperature.HasValue && !parameters.Humidity.HasValue)
+                {
+                    return null;
+                }
 
-            if (parameters.CurrentTemperature.HasValue)
-            {
-                return new SensorData(deviceId, SensorType.Temperature, parameters.CurrentTemperature.Value);
-            }
+                if (parameters.Temperature.HasValue)
+                {
+                    return new SensorData(deviceId, SensorType.Temperature, parameters.Temperature.Value);
+                }
 
-            if (parameters.CurrentHumidity.HasValue)
-            {
-                return new SensorData(deviceId, SensorType.Humidity, parameters.CurrentHumidity.Value);
+                if (parameters.Humidity.HasValue)
+                {
+                    return new SensorData(deviceId, SensorType.Humidity, parameters.Humidity.Value);
+                }
             }
 
             return null;
@@ -120,7 +125,7 @@
 
         public Task ToggleDevice(string deviceId, int channel = 1)
         {
-            return this.SetDevicePowerState(deviceId, "toggle", channel);
+            return this.SetDevicePowerState(deviceId, SwitchStateChange.Toggle, channel);
         }
 
         public async Task<int> GetDeviceChannelCount(string deviceId)
@@ -132,35 +137,49 @@
             return switchesAmount;
         }
 
-        public async Task SetDevicePowerState(string deviceId, string state, int channel = 1)
+        public async Task SetDevicePowerState(string deviceId, SwitchStateChange state, int channel = 1)
         {
             var device = await this.GetDevice(deviceId);
+
+            if (device == null)
+            {
+                throw new KeyNotFoundException("The device id was not found");
+            }
+
             var uiid = device.Extra.Extended.Uiid;
 
-            var status = device.Paramaters.Switch;
-            var switches = device.Paramaters.Switches;
-
             var switchesAmount = this.GetDeviceChannelCountByUuid(uiid);
-
             if (switchesAmount > 0 && switchesAmount < channel)
             {
                 throw new Exception(NiceError.Custom[CustomErrors.Ch404]);
             }
 
-            var stateToSwitch = state;
+            var switches = new LinkSwitch[switchesAmount];
+            SwitchState status;
+            switch (device)
+            {
+                case ISingleSwitchDevice singleSwitch:
+                    status = singleSwitch.Parameters.Switch;
+                    break;
+                case IMultiSwitchDevice multiSwitch:
+                    status = multiSwitch.Parameters.Switches[channel - 1].Switch;
+                    switches = multiSwitch.Parameters.Switches;
+                    break;
+                default:
+                    throw new NotSupportedException("Device is not a switch");
+            }
+
             dynamic parameters = new System.Dynamic.ExpandoObject();
 
-            if (switches != null)
-            {
-                status = switches[channel - 1].Switch;
-            }
+            var stateToSwitch = state switch
+                {
+                    SwitchStateChange.Toggle => status == SwitchState.On ? SwitchState.Off : SwitchState.On,
+                    SwitchStateChange.On => SwitchState.On,
+                    SwitchStateChange.Off => SwitchState.Off,
+                    _ => throw new ArgumentOutOfRangeException(nameof(state))
+                };
 
-            if (state == "toggle")
-            {
-                stateToSwitch = status == SwitchState.On ? "off" : "on";
-            }
-
-            if (switches != null)
+            if (switches.Length > 1)
             {
                 parameters.switches = switches;
                 parameters.switches[channel - 1].@switch = stateToSwitch;
@@ -276,13 +295,16 @@
             var devices = await this.GetDevices();
             var result = await this.CheckDeviceUpdates(devices);
 
-            return result.Select(r => new UpdateCheckResult(r.Version != devices.First(d => d.Deviceid == r.DeviceId).Paramaters.FirmWareVersion, r))
+            var genericDevices = devices.Cast<Device<Paramaters>>().Where(x => x.Parameters is LinkParamaters).Cast<Device<LinkParamaters>>().ToDictionary(x => x.Deviceid);
+
+            return result.Select(r => new UpdateCheckResult(r.Version != genericDevices[r.DeviceId].Parameters.FirmWareVersion, r))
                 .ToList();
         }
 
         public async Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<Device> devices)
         {
-            var deviceInfoList = this.GetFirmwareUpdateInfo(devices);
+            var genericDevices = devices.Cast<Device<Paramaters>>().Where(x => x.Parameters is LinkParamaters).Cast<Device<LinkParamaters>>();
+            var deviceInfoList = this.GetFirmwareUpdateInfo(genericDevices);
 
             dynamic response = await this.MakeRequest(
                                    "/app",
@@ -299,16 +321,19 @@
         {
             var device = await this.GetDevice(deviceId);
 
+            var genericDevice = device as Device<LinkParamaters>;
+
             var result = await this.CheckDeviceUpdates(new[] { device });
 
             var info = result.FirstOrDefault();
-            return new UpdateCheckResult(info.Version != device.Paramaters.FirmWareVersion, info);
+            return new UpdateCheckResult(info.Version != genericDevice.Parameters.FirmWareVersion, info);
         }
 
         public async Task<string?> GetFirmwareVersion(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
-            return device.Paramaters.FirmWareVersion;
+            var genericDevice = device as Device<LinkParamaters>;
+            return genericDevice.Parameters.FirmWareVersion;
         }
 
         public async Task<Credentials> GetCredentials()
@@ -419,8 +444,13 @@
                                               });
 
             JToken token = response;
+            if (token == null)
+            {
+                throw new KeyNotFoundException("The device id was not found");
+            }
 
             device = token.ToObject<Device>();
+
             if (this.devicesCache.ContainsKey(deviceId))
             {
                 this.devicesCache[deviceId] = device;
@@ -491,12 +521,12 @@
             return string.Empty;
         }
 
-        private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device> devices)
+        private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device<LinkParamaters>> devices)
         {
             return devices.Select(d => new FirmwareUpdateInfo
                                            {
                                                Model = d.Extra.Extended.Model,
-                                               Version = d.Paramaters.Version,
+                                               Version = d.Parameters.Version,
                                                DeviceId = d.Deviceid,
                                            }).ToList();
         }
