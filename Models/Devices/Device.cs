@@ -33,7 +33,7 @@
         public List<object> DevGroups { get; set; } = new ();
 
         [JsonProperty("deviceid")]
-        public string? Deviceid { get; set; }
+        public string Deviceid { get; set; }
 
         [JsonProperty("name")]
         public string? Name { get; set; }

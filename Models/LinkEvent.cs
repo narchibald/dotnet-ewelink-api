@@ -1,8 +1,12 @@
 ﻿namespace EWeLink.Api.Models
 {
+    using EWeLink.Api.Models.Converters;
+
     using Newtonsoft.Json;
 
-    public class LinkEvent
+    [JsonConverter(typeof(LinkEventConverter))]
+    public class LinkEvent<T>
+        where T : EventParameters.EventParameters
     {
         public EventAction Action { get; set; }
 
@@ -19,7 +23,7 @@
         public long? ProxyMessageTime { get; set; }
 
         [JsonProperty("params")]
-        public EventParameters Parameters { get; set; } = null!;
+        public T Parameters { get; set; } = default;
 
         public string? From { get; set; }
 
