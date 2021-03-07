@@ -5,9 +5,10 @@
     using Newtonsoft.Json;
 
     [EventDeviceIdentifierAttribute(1000)]
-    public class SnZbButtonEventParameters : EventParameters
+    public class SnZbButtonEventParameters
+        : SnZbEventParameters
     {
-        [JsonProperty("key")]
-        public KeyTrigger Key { get; set; }
+        [JsonProperty("key", NullValueHandling = NullValueHandling.Ignore)]
+        public KeyTrigger? Key { get; set; }
     }
 }

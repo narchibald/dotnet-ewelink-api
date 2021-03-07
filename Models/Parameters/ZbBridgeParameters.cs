@@ -16,7 +16,7 @@
         public string Zled { get; set; }
 
         [JsonProperty("subDevices")]
-        public List<SubDevice> SubDevices { get; set; } = new();
+        public List<SubDevice> SubDevices { get; set; } = new ();
 
         [JsonProperty("addSubDevState")]
         public string AddSubDevState { get; set; }

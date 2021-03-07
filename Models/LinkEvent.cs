@@ -1,38 +1,54 @@
 ﻿namespace EWeLink.Api.Models
 {
     using EWeLink.Api.Models.Converters;
-
     using Newtonsoft.Json;
 
-    [JsonConverter(typeof(LinkEventConverter))]
-    public class LinkEvent<T>
-        where T : EventParameters.EventParameters
+    public interface ILinkEvent<out T>
+        where T : EventParameters.IEventParameters
     {
+        EventAction Action { get; set; }
+
+        public string DeviceId { get; }
+
+        public int Uiid { get; }
+
+        public string Apikey { get; }
+
+        public string UserAgent { get; }
+
+        public int DSeq { get; }
+
+        public T Parameters { get; }
+
+        public string From { get; }
+    }
+
+    [JsonConverter(typeof(LinkEventConverter))]
+    public class LinkEvent<T> : ILinkEvent<T>
+        where T : EventParameters.IEventParameters
+    {
+        [JsonProperty("action")]
         public EventAction Action { get; set; }
 
-        public string DeviceId { get; set; } = null!;
+        [JsonProperty("deviceid")]
+        public string DeviceId { get; set; }
 
-        public string? ApiKey { get; set; }
+        [JsonProperty("uiid")]
+        public int Uiid { get; set; }
 
-        public string? UserAgent { get; set; }
+        [JsonProperty("apikey")]
+        public string Apikey { get; set; } 
 
-        [JsonProperty("ts")]
-        public long Timestamp { get; set; }
+        [JsonProperty("userAgent")]
+        public string UserAgent { get; set; } 
 
-        [JsonProperty("proxyMsgTime")]
-        public long? ProxyMessageTime { get; set; }
+        [JsonProperty("d_seq")]
+        public int DSeq { get; set; } 
 
         [JsonProperty("params")]
-        public T Parameters { get; set; } = default;
+        public T Parameters { get; set; } 
 
-        public string? From { get; set; }
-
-        public long Sequence { get; set; }
-
-        public long Seq { get; set; }
-
-        public string? PartnerApikey { get; set; }
-
-        public string? TempRec { get; set; }
+        [JsonProperty("from")]
+        public string From { get; set; } 
     }
 }

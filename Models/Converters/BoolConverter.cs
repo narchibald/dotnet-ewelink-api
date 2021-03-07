@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace EWeLink.Api.Models.Converters
+﻿namespace EWeLink.Api.Models.Converters
 {
+    using System;
     using Newtonsoft.Json;
 
-    public class BoolConverter: JsonConverter
+    public class BoolConverter : JsonConverter
     {
         /// <inheritdoc/>
         public override bool CanWrite => false;
@@ -20,7 +17,7 @@ namespace EWeLink.Api.Models.Converters
             throw new NotImplementedException("Unnecessary because CanRead is false. The type will skip the converter.");
         }
 
-        public override object? ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             var nullableType = Nullable.GetUnderlyingType(objectType);
             if (reader.Value is null)

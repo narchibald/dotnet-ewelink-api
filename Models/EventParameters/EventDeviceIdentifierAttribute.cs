@@ -3,7 +3,8 @@
     using System;
 
     [AttributeUsage(AttributeTargets.Class)]
-    internal class EventDeviceIdentifierAttribute : Attribute
+    internal class EventDeviceIdentifierAttribute
+        : Attribute
     {
         public EventDeviceIdentifierAttribute(params int[] uiids)
         {

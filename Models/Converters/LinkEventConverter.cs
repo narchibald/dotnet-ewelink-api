@@ -4,8 +4,6 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Reflection;
-
-    using EWeLink.Api.Models.Devices;
     using EWeLink.Api.Models.EventParameters;
 
     using Newtonsoft.Json;
@@ -14,7 +12,6 @@
     public class LinkEventConverter : JsonConverter
     {
         private static readonly Dictionary<int, Type> DeviceTypes;
-        private static Dictionary<string, int> _deviceIdsToUiid;
 
         [ThreadStatic]
         private static bool disabled;
@@ -27,35 +24,13 @@
                 .ToDictionary(x => x.Uiid, v => v.Type);
         }
 
-        public static void SetDeviceIdToUiid(Dictionary<string, int> o)
-        {
-            lock (DeviceTypes)
-            {
-                _deviceIdsToUiid = o;
-            }
-        }
-
-        public static Type GetTypeForDeviceId(string deviceId)
-        {
-            Type deviceType = typeof(GenericDevice);
-            lock (DeviceTypes)
-            {
-                if (_deviceIdsToUiid.TryGetValue(deviceId, out var deviceUiid))
-                {
-                    DeviceTypes.TryGetValue(deviceUiid, out deviceType);
-                }
-            }
-
-            return typeof(LinkEvent<>).MakeGenericType(deviceType);
-        }
-
-        // Disables the converter in a thread-safe manner.
-
         /// <inheritdoc/>
         public override bool CanWrite => false;
 
         /// <inheritdoc/>
-        public override bool CanRead => !Disabled;
+        public override bool CanRead => !this.Disabled;
+
+        // Disables the converter in a thread-safe manner.
 
         private bool Disabled
         {
@@ -74,16 +49,17 @@
         {
             var jsonObject = JObject.Load(reader);
             var deviceId = jsonObject.Value<string>("deviceid");
-            Type eventType = GetTypeForDeviceId(deviceId);
+            var deviceUiid = jsonObject.Value<int?>("uiid");
+            Type eventType = GetTypeForUiid(deviceUiid);
 
             try
             {
-                Disabled = true;
+                this.Disabled = true;
                 return jsonObject.ToObject(eventType);
             }
             finally
             {
-                Disabled = false;
+                this.Disabled = false;
             }
         }
 
@@ -91,6 +67,16 @@
         public override bool CanConvert(Type objectType)
         {
             return true;
+        }
+
+        private static Type GetTypeForUiid(int? deviceUiid)
+        {
+            if (!deviceUiid.HasValue || !DeviceTypes.TryGetValue(deviceUiid.Value, out var deviceType))
+            {
+                deviceType = typeof(EventParameters);
+            }
+
+            return typeof(LinkEvent<>).MakeGenericType(deviceType);
         }
     }
 }

@@ -4,7 +4,6 @@
 
     public class ExtendedExtra
     {
-
         [JsonProperty("uiid")]
         public int Uiid { get; set; }
 
@@ -37,6 +36,5 @@
 
         [JsonProperty("staMac")]
         public string StaMac { get; set; }
-
     }
 }

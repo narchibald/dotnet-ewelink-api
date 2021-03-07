@@ -1,9 +1,13 @@
 ﻿namespace EWeLink.Api.Models
 {
+    using System.Runtime.Serialization;
+
     public enum EventAction
     {
+        [EnumMember(Value = "")]
         Unknown,
 
-        Update
+        [EnumMember(Value = "update")]
+        Update,
     }
 }

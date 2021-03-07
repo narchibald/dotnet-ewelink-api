@@ -57,7 +57,7 @@
         public List<object> ShareUsersInfo { get; set; } = new ();
 
         [JsonProperty("sharedTo")]
-        public List<object> SharedTo { get; set; } = new();
+        public List<object> SharedTo { get; set; } = new ();
 
         [JsonProperty("__v")]
         public int V { get; set; }

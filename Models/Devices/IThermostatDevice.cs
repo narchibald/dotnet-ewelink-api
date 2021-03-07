@@ -2,7 +2,7 @@
 {
     using EWeLink.Api.Models.Parameters;
 
-    interface IThermostatDevice
+    public interface IThermostatDevice
     {
         IThermostatParameters Parameters { get; }
     }

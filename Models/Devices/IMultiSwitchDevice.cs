@@ -2,7 +2,7 @@
 {
     using EWeLink.Api.Models.Parameters;
 
-    interface IMultiSwitchDevice
+    public interface IMultiSwitchDevice
     {
         MultiSwitchParameters Parameters { get; }
     }

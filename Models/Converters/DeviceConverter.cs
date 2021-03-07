@@ -30,7 +30,7 @@
         public override bool CanWrite => false;
 
         /// <inheritdoc/>
-        public override bool CanRead => !Disabled;
+        public override bool CanRead => !this.Disabled;
 
         private bool Disabled
         {

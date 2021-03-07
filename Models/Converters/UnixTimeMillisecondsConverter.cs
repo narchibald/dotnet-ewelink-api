@@ -9,7 +9,7 @@
     public class UnixTimeMillisecondsConverter : JsonConverter
     {
         /// <inheritdoc/>
-        public override bool CanWrite => false;
+        public override bool CanWrite => true;
 
         /// <inheritdoc/>
         public override bool CanRead => true;
@@ -17,7 +17,18 @@
         /// <inheritdoc/>
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
-            throw new NotImplementedException("Unnecessary because CanRead is false. The type will skip the converter.");
+            if (value is null)
+            {
+                writer.WriteNull();
+            }
+            else if (value is DateTimeOffset dateTime)
+            {
+                writer.WriteValue(dateTime.ToUnixTimeMilliseconds());
+            }
+            else
+            {
+                writer.WriteNull();
+            }
         }
 
         /// <inheritdoc/>

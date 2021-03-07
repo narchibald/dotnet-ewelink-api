@@ -1,7 +1,5 @@
 ﻿namespace EWeLink.Api.Models
 {
-    using System;
-
     using Newtonsoft.Json;
 
     public class Timer
@@ -26,6 +24,5 @@
 
         [JsonProperty("period")]
         public string? Period { get; set; }
-
     }
 }

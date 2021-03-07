@@ -10,13 +10,4 @@
         [EnumMember(Value = "off")]
         Off,
     }
-
-    public enum SwitchStateChange
-    {
-        Toggle,
-
-        On,
-
-        Off,
-    }
 }

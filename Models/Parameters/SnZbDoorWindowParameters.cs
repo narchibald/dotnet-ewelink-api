@@ -7,7 +7,6 @@
     public class SnZbDoorWindowParameters : SnZbParameters
     {
         [JsonProperty("lock")]
-        //[JsonConverter(typeof(BoolConverter))]
         public bool Open { get; set; }
     }
 }

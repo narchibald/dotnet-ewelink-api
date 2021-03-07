@@ -19,6 +19,6 @@
 
         [JsonProperty("trigTime")]
         [JsonConverter(typeof(UnixTimeMillisecondsConverter))]
-        public DateTime? TrigerTime { get; set; }
+        public DateTimeOffset? TriggerTime { get; set; }
     }
 }

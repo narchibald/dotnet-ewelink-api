@@ -7,7 +7,6 @@
 
     public class User
     {
-
         [JsonProperty("clientInfo")]
         public ClientInfo ClientInfo { get; set; }
 

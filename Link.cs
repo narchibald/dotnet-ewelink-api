@@ -18,7 +18,7 @@
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
 
-    public class Link
+    public class Link : ILink
     {
         private const string AppId = "YzfeftUVcZ6twZw1OoVKPRFYTrGEg01Q";
 
@@ -26,7 +26,9 @@
 
         private static readonly HttpClient HttpClient = new ();
 
-        private readonly Dictionary<string, Device> devicesCache = new ();
+        private readonly IDeviceCache deviceCache;
+
+        private readonly ILinkWebSocket linkWebSocket;
 
         private string? region = "us";
 
@@ -40,27 +42,23 @@
 
         private string? apiKey;
 
-        public Link(
-            string? email = null,
-            string? password = null,
-            string? phoneNumber = null,
-            string? region = "us",
-            string? at = null,
-            string? apiKey = null)
+        public Link(ILinkConfiguration configuration, IDeviceCache deviceCache, ILinkWebSocket linkWebSocket)
         {
-            var check = this.CheckLoginParameters(email, phoneNumber, password, at);
+            this.deviceCache = deviceCache;
+            this.linkWebSocket = linkWebSocket;
+            var check = this.CheckLoginParameters(configuration.Email, configuration.PhoneNumber, configuration.Password, configuration.At);
 
             if (!check)
             {
                 throw new Exception("invalidCredentials");
             }
 
-            this.region = region;
-            this.phoneNumber = phoneNumber;
-            this.email = email;
-            this.password = password;
-            this.at = at;
-            this.apiKey = apiKey;
+            this.region = configuration.Region;
+            this.phoneNumber = configuration.PhoneNumber;
+            this.email = configuration.Email;
+            this.password = configuration.Password;
+            this.at = configuration.At;
+            this.apiKey = configuration.ApiKey;
         }
 
         public Uri ApiUri => new Uri($"https://{this.region}-api.coolkit.cc:8080/api");
@@ -210,12 +208,7 @@
             }
         }
 
-        public Task<ClientWebSocket> OpenWebSocket()
-        {
-            return this.OpenWebSocket(CancellationToken.None);
-        }
-
-        public async Task<ClientWebSocket> OpenWebSocket(CancellationToken cancellationToken)
+        public async Task<ILinkWebSocket> OpenWebSocket(CancellationToken cancellationToken = default)
         {
             var wssLoginPayload = JsonConvert.SerializeObject(new
             {
@@ -230,29 +223,8 @@
                 version = 8,
             });
 
-            var wsp = new ClientWebSocket();
-            wsp.Options.KeepAliveInterval = TimeSpan.FromMilliseconds(120000);
-
-            await wsp.ConnectAsync(this.ApiWebSocketUri, CancellationToken.None);
-
-            var data = new ArraySegment<byte>(Encoding.UTF8.GetBytes(wssLoginPayload));
-            await wsp.SendAsync(data, WebSocketMessageType.Text, true, cancellationToken);
-
-            var buffer = new ArraySegment<byte>(new byte[8192]);
-            var result = await wsp.ReceiveAsync(buffer, cancellationToken);
-
-            if (result.MessageType == WebSocketMessageType.Text)
-            {
-                var text = Encoding.UTF8.GetString(buffer.Array, 0, result.Count);
-                var json = JsonConvert.DeserializeObject<dynamic>(text);
-                int? error = json.error;
-                if (error > 0)
-                {
-                    throw new Exception($"Error: {error}");
-                }
-            }
-
-            return wsp;
+            await this.linkWebSocket.Open(wssLoginPayload, ApiWebSocketUri, cancellationToken);
+            return this.linkWebSocket;
         }
 
         public async Task<List<Device>> GetDevices()
@@ -275,18 +247,7 @@
             }
 
             var devicelist = jtoken.ToObject<List<Device>>();
-            foreach (var device in devicelist)
-            {
-                if (!this.devicesCache.ContainsKey(device.Deviceid))
-                {
-                    this.devicesCache.Add(device.Deviceid, device);
-                }
-                else
-                {
-                    this.devicesCache[device.Deviceid] = device;
-                }
-            }
-
+            this.deviceCache.UpdateCache(devicelist);
             return devicelist;
         }
 
@@ -427,7 +388,7 @@
 
         private async Task<Device> GetDevice(string deviceId, bool noCacheLoad)
         {
-            if (!noCacheLoad && this.devicesCache.TryGetValue(deviceId, out Device device))
+            if (!noCacheLoad && this.deviceCache.TryGetDevice(deviceId, out Device device))
             {
                 return device;
             }
@@ -451,16 +412,7 @@
 
             device = token.ToObject<Device>();
 
-            if (this.devicesCache.ContainsKey(deviceId))
-            {
-                this.devicesCache[deviceId] = device;
-            }
-            else
-            {
-                this.devicesCache.Add(deviceId, device);
-            }
-
-            return device;
+            return this.deviceCache.UpdateCache(device);
         }
 
         private bool CheckLoginParameters(
