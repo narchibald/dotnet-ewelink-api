@@ -66,7 +66,7 @@ namespace EWeLink.Api
             switch (socketReceiveResult.MessageType)
             {
                 case WebSocketMessageType.Close:
-                    this.logger.LogInformation("Web socket closed. status:{0}, description: {1}", socketReceiveResult.CloseStatus, socketReceiveResult.CloseStatusDescription);
+                    this.logger.LogInformation("Web socket closed. status:{CloseStatus}, description: {CloseStatusDescription}", socketReceiveResult.CloseStatus, socketReceiveResult.CloseStatusDescription);
                     return new LinkWebSocketReceiveResult(socketReceiveResult);
                 case WebSocketMessageType.Text:
                     if (buffer.Array != null)
@@ -82,7 +82,7 @@ namespace EWeLink.Api
 
                     return null;
                 default:
-                    this.logger.LogWarning("Unhandled web socket message type. messageType:{0}", socketReceiveResult.MessageType);
+                    this.logger.LogWarning("Unhandled web socket message type. messageType:{MessageType", socketReceiveResult.MessageType);
                     return null;
             }
         }
@@ -91,7 +91,7 @@ namespace EWeLink.Api
         {
             var text = Encoding.UTF8.GetString(buffer, 0, count);
 
-            this.logger.LogDebug("Received event: {0}", text);
+            this.logger.LogDebug("Received event: {Text}", text);
             var jsonObject = JObject.Parse(text);
             var deviceId = jsonObject.Value<string>("deviceid");
 
@@ -106,14 +106,18 @@ namespace EWeLink.Api
             }
 
             Type deviceType = deviceUiid.HasValue ? this.deviceCache.GetEventParameterTypeForUiid(deviceUiid.Value) ?? typeof(EventParameters) : typeof(EventParameters);
-            if (typeof(SnZbEventParameters).IsAssignableFrom(deviceType))
+            var jsonObjectParams = jsonObject.GetValue("params") as JObject;
+            if (typeof(SnZbEventParameters).IsAssignableFrom(deviceType) && jsonObjectParams != null)
             {
-                var jsonObjectParams = jsonObject.GetValue("params") as JObject;
-                if (jsonObjectParams.Count == 2 && new[] {"battery", "trigTime"}.All(jsonObjectParams.ContainsKey))
+                if (jsonObjectParams.Count == 2 && new[] { "battery", "trigTime" }.All(jsonObjectParams.ContainsKey))
                 {
                     deviceType = typeof(SnZbBatteryEventParameter);
                 }
-                else if (!jsonObjectParams.ContainsKey("trigTime"))
+            }
+
+            if (typeof(EventParameters).IsAssignableFrom(deviceType) && jsonObjectParams != null)
+            {
+                if (!jsonObjectParams.ContainsKey("trigTime"))
                 {
                     jsonObjectParams.Add("trigTime", new JValue(DateTimeOffset.Now.ToUnixTimeMilliseconds()));
                 }

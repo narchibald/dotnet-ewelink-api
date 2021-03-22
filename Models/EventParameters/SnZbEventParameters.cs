@@ -6,11 +6,13 @@
 
     using Newtonsoft.Json;
 
-    public class SnZbEventParameters
-        : EventParameters
+    public interface ISnZbEventParameters
+        : IEventParameters
     {
-        [JsonProperty("trigTime")]
-        [JsonConverter(typeof(UnixTimeMillisecondsConverter))]
-        public DateTimeOffset? TriggerTime { get; set; }
+    }
+
+    public class SnZbEventParameters
+        : EventParameters, ISnZbEventParameters
+    {
     }
 }

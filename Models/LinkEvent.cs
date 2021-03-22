@@ -23,7 +23,6 @@
         public string From { get; }
     }
 
-    [JsonConverter(typeof(LinkEventConverter))]
     public class LinkEvent<T> : ILinkEvent<T>
         where T : EventParameters.IEventParameters
     {
@@ -37,18 +36,18 @@
         public int Uiid { get; set; }
 
         [JsonProperty("apikey")]
-        public string Apikey { get; set; } 
+        public string Apikey { get; set; }
 
         [JsonProperty("userAgent")]
-        public string UserAgent { get; set; } 
+        public string UserAgent { get; set; }
 
         [JsonProperty("d_seq")]
-        public int DSeq { get; set; } 
+        public int DSeq { get; set; }
 
         [JsonProperty("params")]
-        public T Parameters { get; set; } 
+        public T Parameters { get; set; }
 
         [JsonProperty("from")]
-        public string From { get; set; } 
+        public string From { get; set; }
     }
 }

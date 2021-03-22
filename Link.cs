@@ -380,6 +380,8 @@
 
             if (error > 0)
             {
+                if (error == 406)
+                    this.at = null;
                 throw new HttpRequestException(NiceError.Errors[error.Value]);
             }
 

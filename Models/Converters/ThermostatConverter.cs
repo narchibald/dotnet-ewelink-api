@@ -8,7 +8,7 @@
     public class ThermostatConverter : JsonConverter
     {
         /// <inheritdoc/>
-        public override bool CanWrite => false;
+        public override bool CanWrite => true;
 
         /// <inheritdoc/>
         public override bool CanRead => true;
@@ -16,7 +16,18 @@
         /// <inheritdoc/>
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
-            throw new NotImplementedException("Unnecessary because CanRead is false. The type will skip the converter.");
+            if (value is null)
+            {
+                writer.WriteNull();
+            }
+            else if (value is decimal decimalValue)
+            {
+                writer.WriteValue(decimalValue.ToString().Replace(".", string.Empty));
+            }
+            else
+            {
+                writer.WriteNull();
+            }
         }
 
         /// <inheritdoc/>
@@ -41,8 +52,7 @@
         /// <inheritdoc/>
         public override bool CanConvert(Type objectType)
         {
-            var nullableType = Nullable.GetUnderlyingType(objectType);
-            return (nullableType ?? objectType) == typeof(decimal);
+            return true;
         }
     }
 }

@@ -4,9 +4,15 @@
 
     using Newtonsoft.Json;
 
+    public interface ISnZbMotionEventParameters
+        : ISnZbEventParameters
+    {
+        Motion Motion { get; set; }
+    }
+
     [EventDeviceIdentifierAttribute(2026)]
     public class SnZbMotionEventParameters
-        : SnZbEventParameters
+        : SnZbEventParameters, ISnZbMotionEventParameters
     {
         [JsonProperty("motion")]
         public Motion Motion { get; set; }

@@ -50,7 +50,7 @@
             var jsonObject = JObject.Load(reader);
             var deviceId = jsonObject.Value<string>("deviceid");
             var deviceUiid = jsonObject.Value<int?>("uiid");
-            Type eventType = GetTypeForUiid(deviceUiid);
+            Type eventType = objectType;//GetTypeForUiid(deviceUiid);
 
             try
             {
