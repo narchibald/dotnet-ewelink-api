@@ -1,4 +1,6 @@
-﻿namespace EWeLink.Api
+﻿using System.Linq;
+
+namespace EWeLink.Api
 {
     using System.Collections.Generic;
     using System.IO;
@@ -49,7 +51,8 @@
         {
             var assembly = typeof(DeviceData).GetTypeInfo().Assembly;
             var serializer = new JsonSerializer();
-            using var stream = assembly.GetManifestResourceStream($"{assembly.GetName().Name}.Resources.{resourceName}");
+            var assemblyResourceName = assembly.GetManifestResourceNames().Single(x => x.EndsWith($".Resources.{resourceName}"));
+            using var stream = assembly.GetManifestResourceStream(assemblyResourceName);
             using var reader = new StreamReader(stream);
             using var jsonReader = new JsonTextReader(reader);
             return serializer.Deserialize<T>(jsonReader);

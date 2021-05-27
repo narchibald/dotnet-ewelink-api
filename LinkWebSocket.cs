@@ -1,5 +1,7 @@
 using System.Linq;
 using System.Reflection;
+using EWeLink.Api.Models.Devices;
+using EWeLink.Api.Models.Parameters;
 
 namespace EWeLink.Api
 {
@@ -107,6 +109,12 @@ namespace EWeLink.Api
 
             Type deviceType = deviceUiid.HasValue ? this.deviceCache.GetEventParameterTypeForUiid(deviceUiid.Value) ?? typeof(EventParameters) : typeof(EventParameters);
             var jsonObjectParams = jsonObject.GetValue("params") as JObject;
+            var device = this.deviceCache.GetDevice(deviceId);
+            if (device is IDevice<Paramaters> typedDevice)
+            {
+                typedDevice.Parameters.Update(jsonObjectParams.ToString());
+            }
+
             if (typeof(SnZbEventParameters).IsAssignableFrom(deviceType) && jsonObjectParams != null)
             {
                 if (jsonObjectParams.Count == 2 && new[] { "battery", "trigTime" }.All(jsonObjectParams.ContainsKey))

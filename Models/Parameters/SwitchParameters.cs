@@ -12,5 +12,12 @@
 
         [JsonProperty("switch")]
         public SwitchState Switch { get; set; }
+
+        public override dynamic CreateParameters()
+        {
+            var parameters = base.CreateParameters();
+            parameters.@switch = Switch;
+            return parameters;
+        }
     }
 }

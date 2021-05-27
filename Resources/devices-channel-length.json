@@ -16,5 +16,7 @@
   "SOCKET_4": 4,
   "GSM_SOCKET_4": 4,
   "SWITCH_4": 4,
-  "CUN_YOU_DOOR": 4
+  "CUN_YOU_DOOR": 4,
+  "B02-B": 1,
+  "B05-B": 1
 }

@@ -1,4 +1,6 @@
-﻿namespace EWeLink.Api
+﻿using Newtonsoft.Json.Converters;
+
+namespace EWeLink.Api
 {
     using System;
     using System.Collections.Generic;
@@ -167,7 +169,8 @@
                     throw new NotSupportedException("Device is not a switch");
             }
 
-            dynamic parameters = new System.Dynamic.ExpandoObject();
+            var deviceParameters = ((IDevice<Paramaters>)device).Parameters;
+            dynamic parameters = deviceParameters.CreateParameters();
 
             var stateToSwitch = state switch
                 {
@@ -205,6 +208,10 @@
             if (responseError > 0)
             {
                 throw new Exception(NiceError.Errors[responseError.Value]);
+            }
+            else
+            {
+                deviceParameters.Update(parameters);
             }
         }
 
@@ -366,7 +373,7 @@
 
             if (body != null)
             {
-                var data = JsonConvert.SerializeObject(body);
+                var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
                 httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
             }
 

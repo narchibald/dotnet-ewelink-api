@@ -102,7 +102,13 @@
         public int Uiid { get; set; }
     }
 
-    public class Device<T> : Device
+    public interface IDevice<out T>
+        where T : Paramaters
+    {
+        public T Parameters { get; }
+    }
+
+    public class Device<T> : Device, IDevice<T>
         where T : Paramaters
     {
         [JsonProperty("params")]

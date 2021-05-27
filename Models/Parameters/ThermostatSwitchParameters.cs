@@ -1,9 +1,6 @@
 ﻿namespace EWeLink.Api.Models.Parameters
 {
-    using System;
     using System.Collections.Generic;
-    using System.Text;
-
     using EWeLink.Api.Models.Converters;
 
     using Newtonsoft.Json;
