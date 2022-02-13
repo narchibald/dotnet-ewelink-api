@@ -1,3 +1,5 @@
+using EWeLink.Api.Models.LightThemes;
+
 namespace EWeLink.Api
 {
     using System;
@@ -28,6 +30,8 @@ namespace EWeLink.Api
         Task<int> GetDeviceChannelCount(string deviceId);
 
         Task SetDevicePowerState(string deviceId, SwitchStateChange state, int channel = 1);
+
+        Task SetLightColor(string deviceId, LightBrightness value);
 
         Task<ILinkWebSocket> OpenWebSocket(CancellationToken cancellationToken = default);
 

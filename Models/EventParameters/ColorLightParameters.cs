@@ -1,7 +1,8 @@
-﻿using Newtonsoft.Json;
-
-namespace EWeLink.Api.Models.EventParameters
+﻿namespace EWeLink.Api.Models.EventParameters
 {
+    using EWeLink.Api.Models.LightThemes;
+    using Newtonsoft.Json;
+
     [EventDeviceIdentifierAttribute(104)]
     public class ColorLightParameters
         : SwitchEventParameters
@@ -10,9 +11,15 @@ namespace EWeLink.Api.Models.EventParameters
         public LightType LightType { get; set; }
 
         [JsonProperty("white")]
-        public White White { get; set; }
+        public White? White { get; set; }
 
         [JsonProperty("color")]
-        public Color Color { get; set; }
+        public Color? Color { get; set; }
+
+        [JsonProperty("read")]
+        public Read? Read { get; set; }
+
+        [JsonProperty("party")]
+        public Party? Party { get; set; }
     }
 }

@@ -1,8 +1,8 @@
-namespace EWeLink.Api.Models
+namespace EWeLink.Api.Models.LightThemes
 {
     using Newtonsoft.Json;
 
-    public class Color
+    public class Color : LightBrightness
     {
         [JsonProperty("r")]
         public int Red { get; set; }
@@ -12,8 +12,5 @@ namespace EWeLink.Api.Models
 
         [JsonProperty("b")]
         public int Blue { get; set; }
-
-        [JsonProperty("br")]
-        public int Brightness { get; set; }
     }
 }

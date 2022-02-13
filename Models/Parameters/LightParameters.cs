@@ -1,6 +1,7 @@
 namespace EWeLink.Api.Models.Parameters
 {
     using System;
+    using EWeLink.Api.Models.LightThemes;
     using Newtonsoft.Json;
 
     public abstract class LightParameters : SwitchParameters
@@ -16,6 +17,9 @@ namespace EWeLink.Api.Models.Parameters
 
         [JsonProperty("selfApikey")]
         public string SelfApikey { get; set; }
+
+        [JsonProperty("white")]
+        public White? White { get; set; }
 
         public override dynamic CreateParameters()
         {

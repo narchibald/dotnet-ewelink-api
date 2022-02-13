@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Converters;
+﻿using EWeLink.Api.Models.LightThemes;
+using Newtonsoft.Json.Converters;
 
 namespace EWeLink.Api
 {
@@ -212,6 +213,57 @@ namespace EWeLink.Api
             else
             {
                 deviceParameters.Update(parameters);
+            }
+        }
+
+        public async Task SetLightColor(string deviceId, LightBrightness value)
+        {
+            var device = await this.GetDevice(deviceId);
+
+            if (device == null)
+            {
+                throw new KeyNotFoundException("The device id was not found");
+            }
+
+            if (!(device is Device<ColorLightParameters> colorLight))
+            {
+                throw new NotSupportedException("The given device id is not a color light");
+            }
+
+            var deviceParameters = colorLight.Parameters.CreateParameters();
+            if (value is Color colorValue)
+            {
+                deviceParameters.ltype = LightType.Color;
+                deviceParameters.color = colorValue;
+            }
+            else if (value is White whiteValue)
+            {
+                deviceParameters.ltype = LightType.White;
+                deviceParameters.white = whiteValue;
+            }
+
+            dynamic response = await this.MakeRequest(
+                "/user/device/status",
+                body: new
+                {
+                    deviceid = deviceId,
+                    appid = AppId,
+                    @params = deviceParameters,
+                    nonce = Utilities.Nonce,
+                    ts = Utilities.Timestamp,
+                    version = 8,
+                },
+                method: HttpMethod.Post);
+
+            int? responseError = response.error;
+
+            if (responseError > 0)
+            {
+                throw new Exception(NiceError.Errors[responseError.Value]);
+            }
+            else
+            {
+                colorLight.Parameters.Update(deviceParameters);
             }
         }
 
