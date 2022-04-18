@@ -47,9 +47,11 @@
 
         private static T LoadAndDeserializeResource<T>(string resourceName)
         {
-            var assembly = typeof(DeviceData).GetTypeInfo().Assembly;
+            var t = typeof(DeviceData);
+            var assembly = t.Assembly;
+            var rootNameSpace = t.Namespace;
             var serializer = new JsonSerializer();
-            using var stream = assembly.GetManifestResourceStream($"{assembly.GetName().Name}.Resources.{resourceName}");
+            using var stream = assembly.GetManifestResourceStream($"{rootNameSpace}.Resources.{resourceName}");
             using var reader = new StreamReader(stream);
             using var jsonReader = new JsonTextReader(reader);
             return serializer.Deserialize<T>(jsonReader);
