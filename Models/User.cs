@@ -7,7 +7,6 @@
 
     public class User
     {
-
         [JsonProperty("clientInfo")]
         public ClientInfo ClientInfo { get; set; }
 
@@ -64,6 +63,5 @@
 
         [JsonProperty("bindInfos")]
         public BindInfos BindInfos { get; set; }
-
     }
 }

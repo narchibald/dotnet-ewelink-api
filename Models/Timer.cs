@@ -26,6 +26,5 @@
 
         [JsonProperty("period")]
         public string? Period { get; set; }
-
     }
 }

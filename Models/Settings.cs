@@ -4,7 +4,6 @@
 
     public class Settings
     {
-
         [JsonProperty("opsNotify")]
         public int OpsNotify { get; set; }
 
@@ -25,6 +24,5 @@
 
         [JsonProperty("appDoorbellNotify")]
         public int AppDoorbellNotify { get; set; }
-
     }
 }

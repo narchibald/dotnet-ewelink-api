@@ -3,6 +3,6 @@
     public enum SwitchState
     {
         On,
-        Off
+        Off,
     }
 }

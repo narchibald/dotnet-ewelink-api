@@ -6,7 +6,6 @@
 
     public class UpgradeInfo
     {
-
         [JsonProperty("bizRtnCode")]
         public int BizRtnCode { get; set; }
 

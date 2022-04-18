@@ -4,6 +4,6 @@
     {
         Unknown,
 
-        Update
+        Update,
     }
 }

@@ -84,6 +84,5 @@
 
         [JsonProperty("uiid")]
         public int Uiid { get; set; }
-
     }
 }
