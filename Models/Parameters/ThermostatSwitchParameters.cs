@@ -8,7 +8,7 @@
     public class ThermostatSwitchParameters : SwitchParameters, IThermostatParameters
     {
         [JsonProperty("targets")]
-        public List<Target> Targets { get; set; } = new();
+        public List<Target> Targets { get; set; } = new ();
 
         [JsonProperty("currentTemperature")]
         [JsonConverter(typeof(SensorJsonConverter))]

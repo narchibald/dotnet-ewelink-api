@@ -16,9 +16,9 @@ namespace EWeLink.Api
 
         static DeviceCache()
         {
-            UiidToEventParameterTypes =  typeof(DeviceCache).Assembly.ExportedTypes
+            UiidToEventParameterTypes = typeof(DeviceCache).Assembly.ExportedTypes
                 .Select(x => new { Attribute = x.GetCustomAttribute(typeof(EventDeviceIdentifierAttribute)) as EventDeviceIdentifierAttribute, Type = x })
-                .Where(x => x.Attribute != null).SelectMany(x => x.Attribute.Uiids.Select(i => new { Uiid = i, Type = x.Type }))
+                .Where(x => x.Attribute != null).SelectMany(x => x.Attribute!.Uiids.Select(i => new { Uiid = i, Type = x.Type }))
                 .ToDictionary(x => x.Uiid, v => v.Type);
         }
 

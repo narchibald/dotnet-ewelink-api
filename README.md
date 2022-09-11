@@ -3,9 +3,10 @@ This is a sudo port of the node js library [eWeLink-api](https://github.com/skyd
 
 ### Framework Support
 
-* .Net Standard 2.1
 * .Net Standard 2.0
+* .Net Standard 2.1
 * .Net 5
+* .Net 6
 
 ## Getting started
 
