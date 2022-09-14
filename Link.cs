@@ -369,7 +369,7 @@ namespace EWeLink.Api
 
             response.EnsureSuccessStatusCode();
             var jsonString = await response.Content.ReadAsStringAsync();
-            dynamic json = JsonConvert.DeserializeObject(jsonString);
+            dynamic json = JsonConvert.DeserializeObject<dynamic>(jsonString);
 
             int? errorValue = json.error;
             string region = json.region;
