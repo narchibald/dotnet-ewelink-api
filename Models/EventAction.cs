@@ -9,5 +9,8 @@
 
         [EnumMember(Value = "update")]
         Update,
+
+        [EnumMember(Value = "sysmsg")]
+        SystemMessage,
     }
 }
