@@ -6,7 +6,7 @@
 
     using Newtonsoft.Json;
 
-    public class SnZbParameters : Paramaters
+    public class SnZbParameters : Parameters
     {
         [JsonProperty("subDevId")]
         public string SubDeviceId { get; set; }

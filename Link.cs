@@ -1,7 +1,4 @@
-﻿using EWeLink.Api.Models.LightThemes;
-using Newtonsoft.Json.Converters;
-
-namespace EWeLink.Api
+﻿namespace EWeLink.Api
 {
     using System;
     using System.Collections.Generic;
@@ -13,12 +10,12 @@ namespace EWeLink.Api
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
-
     using EWeLink.Api.Models;
     using EWeLink.Api.Models.Devices;
+    using EWeLink.Api.Models.LightThemes;
     using EWeLink.Api.Models.Parameters;
-
     using Newtonsoft.Json;
+    using Newtonsoft.Json.Converters;
     using Newtonsoft.Json.Linq;
 
     public class Link : ILink
@@ -170,7 +167,7 @@ namespace EWeLink.Api
                     throw new NotSupportedException("Device is not a switch");
             }
 
-            var deviceParameters = ((IDevice<Paramaters>)device).Parameters;
+            var deviceParameters = ((IDevice<Parameters>)device).Parameters;
             dynamic parameters = deviceParameters.CreateParameters();
 
             var stateToSwitch = state switch
@@ -315,7 +312,7 @@ namespace EWeLink.Api
             var devices = await this.GetDevices();
             var result = await this.CheckDeviceUpdates(devices);
 
-            var genericDevices = devices.Cast<Device<Paramaters>>().Where(x => x.Parameters is LinkParamaters).Cast<Device<LinkParamaters>>().ToDictionary(x => x.Deviceid);
+            var genericDevices = devices.Cast<Device<Parameters>>().Where(x => x.Parameters is LinkParameters).Cast<Device<LinkParameters>>().ToDictionary(x => x.Deviceid);
 
             return result.Select(r => new UpdateCheckResult(r.Version != genericDevices[r.DeviceId].Parameters.FirmWareVersion, r))
                 .ToList();
@@ -323,7 +320,7 @@ namespace EWeLink.Api
 
         public async Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<Device> devices)
         {
-            var genericDevices = devices.Cast<Device<Paramaters>>().Where(x => x.Parameters is LinkParamaters).Cast<Device<LinkParamaters>>();
+            var genericDevices = devices.Cast<Device<Parameters>>().Where(x => x.Parameters is LinkParameters).Cast<Device<LinkParameters>>();
             var deviceInfoList = this.GetFirmwareUpdateInfo(genericDevices);
 
             dynamic response = await this.MakeRequest(
@@ -341,7 +338,7 @@ namespace EWeLink.Api
         {
             var device = await this.GetDevice(deviceId);
 
-            var genericDevice = device as Device<LinkParamaters>;
+            var genericDevice = device as Device<LinkParameters>;
 
             var result = await this.CheckDeviceUpdates(new[] { device });
 
@@ -352,7 +349,7 @@ namespace EWeLink.Api
         public async Task<string?> GetFirmwareVersion(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
-            var genericDevice = device as Device<LinkParamaters>;
+            var genericDevice = device as Device<LinkParameters>;
             return genericDevice.Parameters.FirmWareVersion;
         }
 
@@ -452,9 +449,9 @@ namespace EWeLink.Api
 
         private async Task<Device> GetDevice(string deviceId, bool noCacheLoad)
         {
-            if (!noCacheLoad && this.deviceCache.TryGetDevice(deviceId, out Device device))
+            if (!noCacheLoad && this.deviceCache.TryGetDevice(deviceId, out Device? device))
             {
-                return device;
+                return device!;
             }
 
             dynamic response = await this.MakeRequest(
@@ -537,7 +534,7 @@ namespace EWeLink.Api
             return string.Empty;
         }
 
-        private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device<LinkParamaters>> devices)
+        private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device<LinkParameters>> devices)
         {
             return devices.Select(d => new FirmwareUpdateInfo
                                            {

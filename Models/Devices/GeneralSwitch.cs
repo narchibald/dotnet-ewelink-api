@@ -2,7 +2,8 @@
 {
     using EWeLink.Api.Models.Parameters;
 
-    public class GenericDevice : Device<Parameters>
+    [DeviceIdentifier(1)]
+    public class GeneralSwitch : Device<SwitchParameters>
     {
     }
 }

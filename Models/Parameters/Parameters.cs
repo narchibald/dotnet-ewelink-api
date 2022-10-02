@@ -1,10 +1,9 @@
-﻿using Newtonsoft.Json.Converters;
-
-namespace EWeLink.Api.Models.Parameters
+﻿namespace EWeLink.Api.Models.Parameters
 {
     using Newtonsoft.Json;
+    using Newtonsoft.Json.Converters;
 
-    public class Paramaters
+    public class Parameters
     {
         [JsonProperty("bindInfos")]
         public BindInfos BindInfos { get; set; }

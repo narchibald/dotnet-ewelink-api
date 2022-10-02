@@ -1,18 +1,19 @@
-using System.Linq;
-using System.Reflection;
-using EWeLink.Api.Models.Devices;
-using EWeLink.Api.Models.Parameters;
-
 namespace EWeLink.Api
 {
     using System;
+    using System.Linq;
     using System.Net.WebSockets;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+
     using EWeLink.Api.Models;
+    using EWeLink.Api.Models.Devices;
     using EWeLink.Api.Models.EventParameters;
+    using EWeLink.Api.Models.Parameters;
+
     using Microsoft.Extensions.Logging;
+
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
 
@@ -44,9 +45,9 @@ namespace EWeLink.Api
 
             if (result.MessageType == WebSocketMessageType.Text && buffer.Array != null)
             {
-                var text = Encoding.UTF8.GetString(buffer.Array, 0, result.Count);
+                var text = Encoding.UTF8.GetString(buffer.ToArray(), 0, result.Count);
                 var json = JsonConvert.DeserializeObject<dynamic>(text);
-                int? error = json.error;
+                int? error = json?.error;
                 if (error > 0)
                 {
                     throw new Exception($"Error: {error}");
@@ -61,6 +62,11 @@ namespace EWeLink.Api
 
         public async Task<LinkWebSocketReceiveResult?> Receive(CancellationToken cancellationToken)
         {
+            if (this.websocket == null)
+            {
+                throw new ArgumentException("Websocket not opened. Make sure you call the Open' method before calling receive");
+            }
+
             // wait for event
             var buffer = new ArraySegment<byte>(new byte[8192]);
             var socketReceiveResult = await this.websocket.ReceiveAsync(buffer, cancellationToken);
@@ -71,15 +77,10 @@ namespace EWeLink.Api
                     this.logger.LogInformation("Web socket closed. status:{CloseStatus}, description: {CloseStatusDescription}", socketReceiveResult.CloseStatus, socketReceiveResult.CloseStatusDescription);
                     return new LinkWebSocketReceiveResult(socketReceiveResult);
                 case WebSocketMessageType.Text:
-                    if (buffer.Array != null)
+                    var linkEvent = DeserializeEvent(buffer.ToArray(), socketReceiveResult.Count);
+                    if (linkEvent != null)
                     {
-                        var linkEvent = DeserializeEvent(buffer.Array, socketReceiveResult.Count);
-                        if (linkEvent != null)
-                        {
-                            return new LinkWebSocketReceiveResult(socketReceiveResult, linkEvent);
-                        }
-
-                        return null;
+                        return new LinkWebSocketReceiveResult(socketReceiveResult, linkEvent);
                     }
 
                     return null;
@@ -108,9 +109,9 @@ namespace EWeLink.Api
             }
 
             Type deviceType = deviceUiid.HasValue ? this.deviceCache.GetEventParameterTypeForUiid(deviceUiid.Value) ?? typeof(EventParameters) : typeof(EventParameters);
-            var jsonObjectParams = jsonObject.GetValue("params") as JObject;
+            var jsonObjectParams = (JObject)jsonObject.GetValue("params");
             var device = this.deviceCache.GetDevice(deviceId);
-            if (device is IDevice<Paramaters> typedDevice)
+            if (device is IDevice<Parameters> typedDevice)
             {
                 typedDevice.Parameters.Update(jsonObjectParams.ToString());
             }
@@ -121,6 +122,11 @@ namespace EWeLink.Api
                 {
                     deviceType = typeof(SnZbBatteryEventParameter);
                 }
+            }
+
+            if (jsonObject.TryGetValue("proxyMsgTime", out var jvalue))
+            {
+                jsonObjectParams.Add("trigTime", jvalue);
             }
 
             if (typeof(EventParameters).IsAssignableFrom(deviceType) && jsonObjectParams != null)

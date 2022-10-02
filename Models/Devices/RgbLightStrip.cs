@@ -2,7 +2,8 @@
 {
     using EWeLink.Api.Models.Parameters;
 
-    public class GenericDevice : Device<Parameters>
+    [DeviceIdentifier(59)]
+    public class RgbLightStrip : Device<RgbLightStripParameters>
     {
     }
 }

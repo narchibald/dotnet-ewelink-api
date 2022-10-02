@@ -2,7 +2,7 @@
 {
     using Newtonsoft.Json;
 
-    public class SwitchParameters : Paramaters
+    public class SwitchParameters : Parameters
     {
         [JsonProperty("pulse")]
         public string? Pulse { get; set; }

@@ -4,7 +4,7 @@
 
     using Newtonsoft.Json;
 
-    public class ZbBridgeParameters : Paramaters
+    public class ZbBridgeParameters : Parameters
     {
         [JsonProperty("subDevNum")]
         public int SubDeviceNumber { get; set; }

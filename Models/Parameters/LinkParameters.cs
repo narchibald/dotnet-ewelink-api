@@ -4,7 +4,7 @@
 
     using Newtonsoft.Json;
 
-    public class LinkParamaters : Paramaters
+    public class LinkParameters : Parameters
     {
         [JsonProperty("init")]
         public int Init { get; set; }

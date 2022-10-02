@@ -103,13 +103,13 @@
     }
 
     public interface IDevice<out T>
-        where T : Paramaters
+        where T : Parameters
     {
         public T Parameters { get; }
     }
 
     public class Device<T> : Device, IDevice<T>
-        where T : Paramaters
+        where T : Parameters
     {
         [JsonProperty("params")]
         public T Parameters { get; set; } = null!;
