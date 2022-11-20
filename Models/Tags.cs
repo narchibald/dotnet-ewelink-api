@@ -1,5 +1,6 @@
-﻿namespace EWeLink.Api.Models
+namespace EWeLink.Api.Models
 {
+    using System;
     using System.Collections.Generic;
 
     using Newtonsoft.Json;
@@ -11,5 +12,9 @@
 
         [JsonProperty("disable_timers")]
         public List<object> DisableTimers { get; set; }
+
+        [JsonProperty("ck_channel_name")]
+        public CkChannelName ck_channel_name { get; set; }
+
     }
 }
