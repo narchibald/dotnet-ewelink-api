@@ -16,7 +16,7 @@
 
         public string UserAgent { get; }
 
-        public int DSeq { get; }
+        public long DSeq { get; }
 
         public T Parameters { get; }
 
@@ -42,7 +42,7 @@
         public string UserAgent { get; set; }
 
         [JsonProperty("d_seq")]
-        public int DSeq { get; set; }
+        public long DSeq { get; set; }
 
         [JsonProperty("params")]
         public T Parameters { get; set; }
