@@ -1,3 +1,4 @@
+using EWeLink.Api.Models.EventParameters;
 using EWeLink.Api.Models.LightThemes;
 
 namespace EWeLink.Api
@@ -11,6 +12,8 @@ namespace EWeLink.Api
 
     public interface ILink
     {
+        event Action<ILinkEvent<IEventParameters>>? LanParametersUpdated;
+
         Uri ApiUri { get; }
 
         Uri OtaUri { get; }
@@ -34,6 +37,8 @@ namespace EWeLink.Api
         Task SetLightColor(string deviceId, LightBrightness value);
 
         Task<ILinkWebSocket> OpenWebSocket(CancellationToken cancellationToken = default);
+
+        void EnableLanControl();
 
         Task<List<Device>> GetDevices();
 

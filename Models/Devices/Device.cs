@@ -1,4 +1,6 @@
-﻿namespace EWeLink.Api.Models.Devices
+﻿using System.Net;
+
+namespace EWeLink.Api.Models.Devices
 {
     using System;
     using System.Collections.Generic;
@@ -100,6 +102,27 @@
 
         [JsonProperty("uiid")]
         public int Uiid { get; set; }
+
+        // Currently not populated from the fetched API data.
+        public bool HasLanControl => this.LanControl != null;
+
+        public LanControlInformation? LanControl { get; set; }
+    }
+
+    public class LanControlInformation
+    {
+        public LanControlInformation(IPAddress ipAddress, int port, bool encryptionEnabled)
+        {
+            IpAddress = ipAddress;
+            Port = port;
+            EncryptionEnabled = encryptionEnabled;
+        }
+
+        public IPAddress IpAddress { get; }
+
+        public int Port { get; }
+
+        public bool EncryptionEnabled { get; }
     }
 
     public interface IDevice<out T>

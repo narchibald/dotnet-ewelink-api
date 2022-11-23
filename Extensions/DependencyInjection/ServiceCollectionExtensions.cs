@@ -9,6 +9,7 @@ namespace EWeLink.Api.Extensions.DependencyInjection
             services.AddSingleton<IDeviceCache, DeviceCache>();
             services.AddScoped<ILink, Link>();
             services.AddScoped<ILinkWebSocket, LinkWebSocket>();
+            services.AddScoped<ILinkLanControl, LinkLanControl>();
 
             return services;
         }

@@ -1,4 +1,6 @@
-﻿namespace EWeLink.Api
+﻿using EWeLink.Api.Models.EventParameters;
+
+namespace EWeLink.Api
 {
     using System;
     using System.Collections.Generic;
@@ -30,6 +32,8 @@
 
         private readonly ILinkWebSocket linkWebSocket;
 
+        private readonly ILinkLanControl lanControl;
+
         private string? region = "us";
 
         private string? email;
@@ -42,10 +46,12 @@
 
         private string? apiKey;
 
-        public Link(ILinkConfiguration configuration, IDeviceCache deviceCache, ILinkWebSocket linkWebSocket)
+        public Link(ILinkConfiguration configuration, IDeviceCache deviceCache, ILinkWebSocket linkWebSocket, ILinkLanControl lanControl)
         {
             this.deviceCache = deviceCache;
             this.linkWebSocket = linkWebSocket;
+            this.lanControl = lanControl;
+            this.lanControl.ParametersUpdated += e => LanParametersUpdated?.Invoke(e);
             var check = this.CheckLoginParameters(configuration.Email, configuration.PhoneNumber, configuration.Password, configuration.At);
 
             if (!check)
@@ -60,6 +66,8 @@
             this.at = configuration.At;
             this.apiKey = configuration.ApiKey;
         }
+
+        public event Action<ILinkEvent<IEventParameters>>? LanParametersUpdated;
 
         public Uri ApiUri => new Uri($"https://{this.region}-api.coolkit.cc:8080/api");
 
@@ -281,6 +289,11 @@
 
             await this.linkWebSocket.Open(wssLoginPayload, ApiWebSocketUri, cancellationToken);
             return this.linkWebSocket;
+        }
+
+        public void EnableLanControl()
+        {
+            this.lanControl.Start();
         }
 
         public async Task<List<Device>> GetDevices()
