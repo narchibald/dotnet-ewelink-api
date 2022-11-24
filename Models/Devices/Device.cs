@@ -1,6 +1,4 @@
-﻿using System.Net;
-
-namespace EWeLink.Api.Models.Devices
+﻿namespace EWeLink.Api.Models.Devices
 {
     using System;
     using System.Collections.Generic;
@@ -32,7 +30,7 @@ namespace EWeLink.Api.Models.Devices
         public List<object>? Groups { get; set; }
 
         [JsonProperty("devGroups")]
-        public List<object> DevGroups { get; set; } = new ();
+        public List<object> DevGroups { get; set; } = new();
 
         [JsonProperty("deviceid")]
         public string DeviceId { get; set; }
@@ -56,10 +54,10 @@ namespace EWeLink.Api.Models.Devices
         public DateTime CreatedAt { get; set; }
 
         [JsonProperty("shareUsersInfo")]
-        public List<object> ShareUsersInfo { get; set; } = new ();
+        public List<object> ShareUsersInfo { get; set; } = new();
 
         [JsonProperty("sharedTo")]
-        public List<object> SharedTo { get; set; } = new ();
+        public List<object> SharedTo { get; set; } = new();
 
         [JsonProperty("__v")]
         public int V { get; set; }
@@ -107,34 +105,5 @@ namespace EWeLink.Api.Models.Devices
         public bool HasLanControl => this.LanControl != null;
 
         public LanControlInformation? LanControl { get; set; }
-    }
-
-    public class LanControlInformation
-    {
-        public LanControlInformation(IPAddress ipAddress, int port, bool encryptionEnabled)
-        {
-            IpAddress = ipAddress;
-            Port = port;
-            EncryptionEnabled = encryptionEnabled;
-        }
-
-        public IPAddress IpAddress { get; }
-
-        public int Port { get; }
-
-        public bool EncryptionEnabled { get; }
-    }
-
-    public interface IDevice<out T>
-        where T : Parameters
-    {
-        public T Parameters { get; }
-    }
-
-    public class Device<T> : Device, IDevice<T>
-        where T : Parameters
-    {
-        [JsonProperty("params")]
-        public T Parameters { get; set; } = null!;
     }
 }
