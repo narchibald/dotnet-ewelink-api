@@ -91,8 +91,7 @@ namespace EWeLink.Api
                     return;
                 }
 
-                var id = information["id"];
-                if (!deviceCache.TryGetDevice(id, out var device))
+                if (!information.TryGetValue("id", out var id) || !deviceCache.TryGetDevice(id, out var device))
                 {
                     return;
                 }
@@ -128,7 +127,7 @@ namespace EWeLink.Api
                 Type deviceType = this.deviceCache.GetEventParameterTypeForUiid(deviceUiid) ?? typeof(EventParameters);
                 if (device is IDevice<Parameters> typedDevice)
                 {
-                    typedDevice.Parameters.Update(json.ToString());
+                    typedDevice.Parameters.Update(json);
                 }
 
                 if (hasPreviousSeq && this.ParametersUpdated != null)
@@ -144,8 +143,9 @@ namespace EWeLink.Api
                     var jsonObject = JObject.FromObject(new
                     {
                         action = "update",
-                        deviceid = device.Id,
+                        deviceid = device.DeviceId,
                         uiid = device.Uiid,
+                        eventSource = EventSource.Lan,
                     });
 
                     jsonObject.Add("params", parametersJsonObject);

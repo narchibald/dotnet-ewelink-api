@@ -88,15 +88,15 @@ namespace EWeLink.Api
 
         public Device UpdateCache(Device device)
         {
-            if (!this.deviceIdToDevices.ContainsKey(device.Deviceid))
+            if (!this.deviceIdToDevices.ContainsKey(device.DeviceId))
             {
-                this.deviceIdToDevices.Add(device.Deviceid, device);
-                this.deviceIdTUiid.Add(device.Deviceid, device.Uiid);
+                this.deviceIdToDevices.Add(device.DeviceId, device);
+                this.deviceIdTUiid.Add(device.DeviceId, device.Uiid);
             }
             else
             {
-                this.deviceIdToDevices[device.Deviceid] = device;
-                this.deviceIdTUiid[device.Deviceid] = device.Uiid;
+                this.deviceIdToDevices[device.DeviceId] = device;
+                this.deviceIdTUiid[device.DeviceId] = device.Uiid;
             }
 
             return device;

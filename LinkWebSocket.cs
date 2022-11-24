@@ -96,6 +96,7 @@ namespace EWeLink.Api
 
             this.logger.LogDebug("Received event: {Text}", text);
             var jsonObject = JObject.Parse(text);
+            jsonObject.Add("eventSource", new JValue(EventSource.Cloud));
             var deviceId = jsonObject.Value<string>("deviceid");
 
             var deviceUiid = jsonObject.Value<int?>("uiid");

@@ -325,7 +325,7 @@ namespace EWeLink.Api
             var devices = await this.GetDevices();
             var result = await this.CheckDeviceUpdates(devices);
 
-            var genericDevices = devices.Cast<Device<Parameters>>().Where(x => x.Parameters is LinkParameters).Cast<Device<LinkParameters>>().ToDictionary(x => x.Deviceid);
+            var genericDevices = devices.Cast<Device<Parameters>>().Where(x => x.Parameters is LinkParameters).Cast<Device<LinkParameters>>().ToDictionary(x => x.DeviceId);
 
             return result.Select(r => new UpdateCheckResult(r.Version != genericDevices[r.DeviceId].Parameters.FirmWareVersion, r))
                 .ToList();
@@ -553,7 +553,7 @@ namespace EWeLink.Api
                                            {
                                                Model = d.Extra.Extended.Model,
                                                Version = d.Parameters.Version,
-                                               DeviceId = d.Deviceid,
+                                               DeviceId = d.DeviceId,
                                            }).ToList();
         }
 

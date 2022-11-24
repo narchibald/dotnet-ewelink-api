@@ -1,7 +1,13 @@
 ﻿namespace EWeLink.Api.Models
 {
-    using EWeLink.Api.Models.Converters;
     using Newtonsoft.Json;
+
+    public enum EventSource
+    {
+        Cloud,
+
+        Lan,
+    }
 
     public interface ILinkEvent<out T>
         where T : EventParameters.IEventParameters
@@ -21,6 +27,8 @@
         public T Parameters { get; }
 
         public string From { get; }
+
+        public EventSource EventSource { get; }
     }
 
     public class LinkEvent<T> : ILinkEvent<T>
@@ -49,5 +57,9 @@
 
         [JsonProperty("from")]
         public string From { get; set; }
+
+        // This is not a standard property.
+        [JsonProperty("eventSource")]
+        public EventSource EventSource { get; set; }
     }
 }

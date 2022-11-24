@@ -35,7 +35,7 @@ namespace EWeLink.Api.Models.Devices
         public List<object> DevGroups { get; set; } = new ();
 
         [JsonProperty("deviceid")]
-        public string Deviceid { get; set; }
+        public string DeviceId { get; set; }
 
         [JsonProperty("name")]
         public string? Name { get; set; }
