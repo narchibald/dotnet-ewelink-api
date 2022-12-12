@@ -28,11 +28,11 @@ namespace EWeLink.Api
 
         int GetDeviceChannelCountByUuid(int uuid);
 
-        Task ToggleDevice(string deviceId, int channel = 1);
+        Task ToggleDevice(string deviceId, ChannelId channel = ChannelId.One);
 
         Task<int> GetDeviceChannelCount(string deviceId);
 
-        Task SetDevicePowerState(string deviceId, SwitchStateChange state, int channel = 1);
+        Task SetDevicePowerState(string deviceId, SwitchStateChange state, ChannelId channel = ChannelId.One);
 
         Task SetLightColor(string deviceId, LightBrightness value);
 

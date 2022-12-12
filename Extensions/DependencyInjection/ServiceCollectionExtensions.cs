@@ -10,6 +10,7 @@ namespace EWeLink.Api.Extensions.DependencyInjection
             services.AddScoped<ILink, Link>();
             services.AddScoped<ILinkWebSocket, LinkWebSocket>();
             services.AddScoped<ILinkLanControl, LinkLanControl>();
+            services.AddHttpClient();
 
             return services;
         }

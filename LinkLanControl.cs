@@ -1,25 +1,33 @@
-﻿using System.Net.Http;
-
-namespace EWeLink.Api
+﻿namespace EWeLink.Api
 {
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Net;
+    using System.Net.Http;
+    using System.Net.Http.Headers;
     using System.Security.Cryptography;
     using System.Text;
     using System.Threading;
+    using System.Threading.Tasks;
     using EWeLink.Api.Models;
     using EWeLink.Api.Models.Devices;
     using EWeLink.Api.Models.EventParameters;
     using EWeLink.Api.Models.Parameters;
     using Makaretu.Dns;
+    using Microsoft.Extensions.Logging;
+    using Newtonsoft.Json;
+    using Newtonsoft.Json.Converters;
     using Newtonsoft.Json.Linq;
+    using Newtonsoft.Json.Serialization;
 
     public interface ILinkLanControl
     {
         event Action<ILinkEvent<IEventParameters>>? ParametersUpdated;
+
+        Task<bool?> SendSwitchRequest(Device device, Parameters data);
 
         void Start();
 
@@ -28,22 +36,44 @@ namespace EWeLink.Api
 
     public class LinkLanControl : ILinkLanControl, IDisposable
     {
-        private static readonly HttpClient HttpClient = new ();
         private static readonly Random Rand = new ();
+
         private readonly IDeviceCache deviceCache;
+
+        private readonly ILogger<LinkLanControl> logger;
+
+        private readonly IHttpClientFactory httpClientFactory;
+
         private readonly MulticastService multicastService = new ();
+
         private readonly ConcurrentDictionary<string, long> deviceLastSeq = new ();
+
         private readonly SemaphoreSlim answerLock = new (1, 1);
+
+        private readonly JsonSerializerSettings serializerSettings = new ()
+        {
+            ContractResolver = new CamelCasePropertyNamesContractResolver(),
+            Converters = new List<JsonConverter>()
+            {
+                new StringEnumConverter(),
+            },
+            NullValueHandling = NullValueHandling.Ignore,
+        };
+
         private bool started;
 
-        public LinkLanControl(IDeviceCache deviceCache)
+        public LinkLanControl(IDeviceCache deviceCache, ILogger<LinkLanControl> logger, IHttpClientFactory httpClientFactory)
         {
             this.deviceCache = deviceCache;
-            multicastService.NetworkInterfaceDiscovered += (_, _) => multicastService.SendQuery("_ewelink._tcp");
+            this.logger = logger;
+            this.httpClientFactory = httpClientFactory;
+            multicastService.NetworkInterfaceDiscovered += (_, _) => this.multicastService.SendQuery("_ewelink._tcp");
             multicastService.AnswerReceived += OnAnswerReceived;
         }
 
         public event Action<ILinkEvent<IEventParameters>>? ParametersUpdated;
+
+        private string Sequence => DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString();
 
         public void Start()
         {
@@ -69,6 +99,87 @@ namespace EWeLink.Api
             multicastService.Dispose();
             answerLock.Dispose();
         }
+
+        public async Task<bool?> SendSwitchRequest(Device device, Parameters data)
+        {
+            var lanInformation = device.LanControl;
+            if (lanInformation == null)
+            {
+                return null;
+            }
+
+            object jsonData = data switch
+            {
+                MultiSwitchParameters switchParameters => switchParameters.Switches.First(),
+                _ => data
+            };
+
+            var json = JsonConvert.SerializeObject(jsonData, serializerSettings);
+            var ePayload = lanInformation.EncryptionEnabled switch
+            {
+                true => Encrypt(device.DeviceKey, json),
+                _ => new PayLoad(false, null, json)
+            };
+
+            var payload =
+                new
+                {
+                    sequence = Sequence,
+                    deviceid = device.DeviceId,
+                    selfApikey = device.ApiKey,
+                    ePayload.iv,
+                    ePayload.encrypt,
+                    data = ePayload,
+                };
+
+            var uri = FormatSwitchUrl(lanInformation.IpAddress, lanInformation.Port, data is MultiSwitchParameters);
+
+            var requestMessage = new HttpRequestMessage(HttpMethod.Post, uri)
+            {
+                Headers =
+                {
+                    Accept = { new MediaTypeWithQualityHeaderValue("application/json") },
+                    CacheControl = new CacheControlHeaderValue() { NoCache = true },
+                    // Connection = { "Keep-Alive" },
+                },
+                Content = new StringContent(JsonConvert.SerializeObject(payload, serializerSettings), Encoding.UTF8, "application/json"),
+            };
+
+            try
+            {
+                var httpClient = this.httpClientFactory.CreateClient();
+                var response = await httpClient.SendAsync(requestMessage);
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonRaw = await response.Content.ReadAsStringAsync();
+                    var switchResponse = JsonConvert.DeserializeObject<SwitchResponse>(jsonRaw);
+                    if (switchResponse?.error == 0)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        this.logger.LogInformation("Switch request failed with error code: {ErrorCode}", switchResponse?.error);
+                    }
+                }
+            }
+            catch (HttpRequestException e)
+            {
+                this.logger.LogWarning("Switch request failed", e);
+            }
+
+            return false;
+        }
+
+        private string FormatInfoUrl(IPAddress ipAddress, int port) => FormatInfoUrl(ipAddress.ToString(), port);
+
+        private string FormatInfoUrl(string ipAddress, int port) => FormatBaseUrl(ipAddress, port) + "info";
+
+        private string FormatSwitchUrl(IPAddress ipAddress, int port, bool multiple) => FormatSwitchUrl(ipAddress.ToString(), port, multiple);
+
+        private string FormatSwitchUrl(string ipAddress, int port, bool multiple) => FormatBaseUrl(ipAddress, port) + "switch";// + (multiple ? "es" : string.Empty);
+
+        private string FormatBaseUrl(string ipAddress, int port) => $"http://{ipAddress}:{port}/zeroconf/";
 
         private void OnAnswerReceived(object sender, MessageEventArgs e)
         {
@@ -96,16 +207,14 @@ namespace EWeLink.Api
                     return;
                 }
 
-                var encrpted = information["encrypt"] == "true";
+                var encrypted = information["encrypt"] == "true";
                 if (!device!.HasLanControl)
                 {
-                    device.LanControl = new LanControlInformation(ipAddress, port, encrpted);
+                    device.LanControl = new LanControlInformation(ipAddress, port, encrypted);
                 }
 
                 var seq = long.Parse(information["seq"]);
                 var eventTime = new DateTimeOffset(DateTime.SpecifyKind(txtRecord.CreationTime, DateTimeKind.Local)); // this is in local time
-                void UpdateLastSeq(string did, long s) => this.deviceLastSeq.AddOrUpdate(did, (i) => s, (i, p) => s);
-
                 var hasPreviousSeq = this.deviceLastSeq.TryGetValue(id, out var previousSeq);
                 if (previousSeq >= seq)
                 {
@@ -114,16 +223,16 @@ namespace EWeLink.Api
 
                 this.deviceLastSeq.AddOrUpdate(id, (_) => seq, (_, _) => seq);
                 var json = GetData(information);
-                if (encrpted)
+                if (encrypted)
                 {
                     var iv = information["iv"];
-                    var deviceKey = device!.DeviceKey;
+                    var deviceKey = device.DeviceKey;
                     json = Decrypt(deviceKey, iv, json);
                 }
 
                 // as this point we should have enough information to build an event parameter and raise it.
                 var parametersJsonObject = JObject.Parse(json);
-                var deviceUiid = device!.Uiid;
+                var deviceUiid = device.Uiid;
                 Type deviceType = this.deviceCache.GetEventParameterTypeForUiid(deviceUiid) ?? typeof(EventParameters);
                 if (device is IDevice<Parameters> typedDevice)
                 {
@@ -180,11 +289,11 @@ namespace EWeLink.Api
             return sb.ToString();
         }
 
-        private string Decrypt(string devicekey, string iv, string encoded)
+        private string Decrypt(string deviceKey, string iv, string encoded)
         {
-            var eDevicekey = Encoding.UTF8.GetBytes(devicekey);
+            var eDeviceKey = Encoding.UTF8.GetBytes(deviceKey);
             using var md5 = MD5.Create();
-            var key = md5.ComputeHash(eDevicekey);
+            var key = md5.ComputeHash(eDeviceKey);
 
             using var aes = Aes.Create();
             aes.Mode = CipherMode.CBC;
@@ -192,10 +301,10 @@ namespace EWeLink.Api
             aes.KeySize = 128;
             aes.Padding = PaddingMode.None;
 
-
             byte[] Base64Decode(string input)
             {
-                try{
+                try
+                {
                     return Convert.FromBase64String(input);
                 }
                 catch (FormatException)
@@ -209,7 +318,6 @@ namespace EWeLink.Api
             {
                 var ivBase64Decoded = Base64Decode(iv);
                 using var decryptor = aes.CreateDecryptor(key, ivBase64Decoded);
-
                 var ciphertext = Base64Decode(encoded);
                 var data = PerformCryptography(decryptor, ciphertext);
                 var paddingLength = data.Last();
@@ -222,7 +330,7 @@ namespace EWeLink.Api
             }
         }
 
-        private PayLoad Encrypt(string devicekey, string data)
+        private PayLoad Encrypt(string deviceKey, string data)
         {
             byte[] Pad(byte[] data_to_pad, int block_size)
             {
@@ -234,10 +342,9 @@ namespace EWeLink.Api
                 return padded;
             }
 
-
-            var eDevicekey = Encoding.UTF8.GetBytes(devicekey);
+            var eDeviceKey = Encoding.UTF8.GetBytes(deviceKey);
             using var md5 = MD5.Create();
-            var key = md5.ComputeHash(eDevicekey);
+            var key = md5.ComputeHash(eDeviceKey);
 
             byte[] iv = new byte[16];
             Rand.NextBytes(iv);
@@ -251,18 +358,11 @@ namespace EWeLink.Api
             aes.KeySize = 128;
             aes.Padding = PaddingMode.None;
 
-            try
-            {
-                var paddedPlaintext = Pad(plaintext, aes.BlockSize / 8); 
-                using var encryptor = aes.CreateEncryptor(key, iv);
-                var encrptedData = PerformCryptography(encryptor, paddedPlaintext);
-                var dataEncoded = Convert.ToBase64String(encrptedData);
-                return new PayLoad(true, ivBase64Encoded, dataEncoded);
-            }
-            catch (Exception e)
-            {
-                throw;
-            }
+            var paddedPlaintext = Pad(plaintext, aes.BlockSize / 8);
+            using var encryptor = aes.CreateEncryptor(key, iv);
+            var encryptedData = PerformCryptography(encryptor, paddedPlaintext);
+            var dataEncoded = Convert.ToBase64String(encryptedData);
+            return new PayLoad(true, ivBase64Encoded, dataEncoded);
         }
 
         private byte[] PerformCryptography(ICryptoTransform cryptoTransform, byte[] data)
@@ -279,5 +379,7 @@ namespace EWeLink.Api
         }
 
         private record PayLoad(bool encrypt, string iv, string data);
+
+        private record SwitchResponse(long seq, int error, dynamic data);
     }
 }

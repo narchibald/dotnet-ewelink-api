@@ -12,5 +12,8 @@
 
         [EnumMember(Value = "sysmsg")]
         SystemMessage,
+
+        [EnumMember(Value = "reportSubDevice")]
+        ReportSubDevice,
     }
 }

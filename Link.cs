@@ -1,24 +1,23 @@
-﻿using EWeLink.Api.Models.EventParameters;
-
-namespace EWeLink.Api
+﻿namespace EWeLink.Api
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net.Http;
     using System.Net.Http.Headers;
-    using System.Net.WebSockets;
     using System.Security.Cryptography;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using EWeLink.Api.Models;
     using EWeLink.Api.Models.Devices;
+    using EWeLink.Api.Models.EventParameters;
     using EWeLink.Api.Models.LightThemes;
     using EWeLink.Api.Models.Parameters;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
     using Newtonsoft.Json.Linq;
+    using ColorLightParameters = EWeLink.Api.Models.Parameters.ColorLightParameters;
 
     public class Link : ILink
     {
@@ -26,13 +25,13 @@ namespace EWeLink.Api
 
         private const string AppSecret = "4G91qSoboqYO4Y0XJ0LPPKIsq8reHdfa";
 
-        private static readonly HttpClient HttpClient = new ();
-
         private readonly IDeviceCache deviceCache;
 
         private readonly ILinkWebSocket linkWebSocket;
 
         private readonly ILinkLanControl lanControl;
+
+        private readonly IHttpClientFactory httpClientFactory;
 
         private string? region = "us";
 
@@ -46,11 +45,12 @@ namespace EWeLink.Api
 
         private string? apiKey;
 
-        public Link(ILinkConfiguration configuration, IDeviceCache deviceCache, ILinkWebSocket linkWebSocket, ILinkLanControl lanControl)
+        public Link(ILinkConfiguration configuration, IDeviceCache deviceCache, ILinkWebSocket linkWebSocket, ILinkLanControl lanControl, IHttpClientFactory httpClientFactory)
         {
             this.deviceCache = deviceCache;
             this.linkWebSocket = linkWebSocket;
             this.lanControl = lanControl;
+            this.httpClientFactory = httpClientFactory;
             this.lanControl.ParametersUpdated += e => LanParametersUpdated?.Invoke(e);
             var check = this.CheckLoginParameters(configuration.Email, configuration.PhoneNumber, configuration.Password, configuration.At);
 
@@ -129,7 +129,7 @@ namespace EWeLink.Api
             return DeviceData.DeviceChannelCount[deviceType];
         }
 
-        public Task ToggleDevice(string deviceId, int channel = 1)
+        public Task ToggleDevice(string deviceId, ChannelId channel = ChannelId.One)
         {
             return this.SetDevicePowerState(deviceId, SwitchStateChange.Toggle, channel);
         }
@@ -143,7 +143,7 @@ namespace EWeLink.Api
             return switchesAmount;
         }
 
-        public async Task SetDevicePowerState(string deviceId, SwitchStateChange state, int channel = 1)
+        public async Task SetDevicePowerState(string deviceId, SwitchStateChange state, ChannelId channel = ChannelId.One)
         {
             var device = await this.GetDevice(deviceId);
 
@@ -155,7 +155,7 @@ namespace EWeLink.Api
             var uiid = device.Extra.Extended.Uiid;
 
             var switchesAmount = this.GetDeviceChannelCountByUuid(uiid);
-            if (switchesAmount > 0 && switchesAmount < channel)
+            if (switchesAmount > 0 && switchesAmount < (int)channel)
             {
                 throw new Exception(NiceError.Custom[CustomErrors.Ch404]);
             }
@@ -167,16 +167,52 @@ namespace EWeLink.Api
                 case ISingleSwitchDevice singleSwitch:
                     status = singleSwitch.Parameters.Switch;
                     break;
-                case IMultiSwitchDevice multiSwitch:
-                    status = multiSwitch.Parameters.Switches[channel - 1].Switch;
-                    switches = multiSwitch.Parameters.Switches;
+                case ITwoSwitchDevice twoSwitch:
+                {
+                    status = channel switch
+                    {
+                        ChannelId.One => twoSwitch.Parameters.One.Switch,
+                        ChannelId.Two => twoSwitch.Parameters.Two.Switch,
+                        _ => throw new ArgumentOutOfRangeException(nameof(channel))
+                    };
+                    switches = twoSwitch.Parameters.Switches;
+                }
+
+                    break;
+                case IThreeSwitchDevice threeSwitchDevice:
+                    {
+                        status = channel switch
+                        {
+                            ChannelId.One => threeSwitchDevice.Parameters.One.Switch,
+                            ChannelId.Two => threeSwitchDevice.Parameters.Two.Switch,
+                            ChannelId.Three => threeSwitchDevice.Parameters.Three.Switch,
+                            _ => throw new ArgumentOutOfRangeException(nameof(channel))
+                        };
+                        switches = threeSwitchDevice.Parameters.Switches;
+                    }
+
+                    break;
+
+                case IFourSwitchDevice fourSwitchDevice:
+                    {
+                        status = channel switch
+                        {
+                            ChannelId.One => fourSwitchDevice.Parameters.One.Switch,
+                            ChannelId.Two => fourSwitchDevice.Parameters.Two.Switch,
+                            ChannelId.Three => fourSwitchDevice.Parameters.Three.Switch,
+                            ChannelId.Four => fourSwitchDevice.Parameters.Four.Switch,
+                            _ => throw new ArgumentOutOfRangeException(nameof(channel))
+                        };
+                        switches = fourSwitchDevice.Parameters.Switches;
+                    }
+
                     break;
                 default:
                     throw new NotSupportedException("Device is not a switch");
             }
 
             var deviceParameters = ((IDevice<Parameters>)device).Parameters;
-            dynamic parameters = deviceParameters.CreateParameters();
+            var parameters = deviceParameters.CreateParameters();
 
             var stateToSwitch = state switch
                 {
@@ -186,14 +222,30 @@ namespace EWeLink.Api
                     _ => throw new ArgumentOutOfRangeException(nameof(state))
                 };
 
-            if (switches.Length > 1)
+            if (parameters is MultiSwitchParameters multiSwitchParameters)
             {
-                parameters.switches = switches;
-                parameters.switches[channel - 1].@switch = stateToSwitch;
+                var linkSwitch = multiSwitchParameters.Switches.First(x => x.Outlet == (int)channel);
+                linkSwitch!.Switch = stateToSwitch;
+
+                // Reduce the switches to only include the channel we want changed
+                multiSwitchParameters.Switches = new[] { linkSwitch };
+            }
+            else if (parameters is SwitchParameters switchParameters)
+            {
+                switchParameters.Switch = stateToSwitch;
             }
             else
             {
-                parameters.@switch = stateToSwitch;
+                throw new ArgumentException(nameof(parameters));
+            }
+
+            if (device.HasLanControl)
+            {
+                var handled = await this.lanControl.SendSwitchRequest(device, parameters);
+                if (handled.HasValue)
+                {
+                    return;
+                }
             }
 
             dynamic response = await this.MakeRequest(
@@ -235,16 +287,16 @@ namespace EWeLink.Api
                 throw new NotSupportedException("The given device id is not a color light");
             }
 
-            var deviceParameters = colorLight.Parameters.CreateParameters();
+            var deviceParameters = (ColorLightParameters)colorLight.Parameters.CreateParameters();
             if (value is Color colorValue)
             {
-                deviceParameters.ltype = LightType.Color;
-                deviceParameters.color = colorValue;
+                deviceParameters.LightType = LightType.Color;
+                deviceParameters.Color = colorValue;
             }
             else if (value is White whiteValue)
             {
-                deviceParameters.ltype = LightType.White;
-                deviceParameters.white = whiteValue;
+                deviceParameters.LightType = LightType.White;
+                deviceParameters.White = whiteValue;
             }
 
             dynamic response = await this.MakeRequest(
@@ -375,7 +427,8 @@ namespace EWeLink.Api
             httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(body)}");
             httpMessage.Content = new StringContent(JsonConvert.SerializeObject(body));
 
-            var response = await HttpClient.SendAsync(httpMessage);
+            var httpClient = httpClientFactory.CreateClient();
+            var response = await httpClient.SendAsync(httpMessage);
 
             response.EnsureSuccessStatusCode();
             var jsonString = await response.Content.ReadAsStringAsync();
@@ -439,7 +492,8 @@ namespace EWeLink.Api
                 httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
             }
 
-            var response = await HttpClient.SendAsync(httpMessage);
+            var httpClient = this.httpClientFactory.CreateClient();
+            var response = await httpClient.SendAsync(httpMessage);
 
             response.EnsureSuccessStatusCode();
             var jsonString = await response.Content.ReadAsStringAsync();

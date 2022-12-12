@@ -20,12 +20,5 @@ namespace EWeLink.Api.Models.Parameters
 
         [JsonProperty("white")]
         public White? White { get; set; }
-
-        public override dynamic CreateParameters()
-        {
-            var parameters = base.CreateParameters();
-            parameters.sequence = DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString();
-            return parameters;
-        }
     }
 }

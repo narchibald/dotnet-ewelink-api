@@ -6,9 +6,9 @@
     public class Parameters
     {
         [JsonProperty("bindInfos")]
-        public BindInfos BindInfos { get; set; }
+        public BindInfos? BindInfos { get; set; }
 
-        public virtual dynamic CreateParameters() => new System.Dynamic.ExpandoObject();
+        public virtual Parameters CreateParameters() => new Parameters();
 
         public void Update(dynamic data) => Update(JsonConvert.SerializeObject(data, new StringEnumConverter()));
 

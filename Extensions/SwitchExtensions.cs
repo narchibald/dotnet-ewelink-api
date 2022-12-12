@@ -3,14 +3,6 @@
     using EWeLink.Api.Models;
     using EWeLink.Api.Models.EventParameters;
 
-    public enum ChannelId
-    {
-        One = 0,
-        Two = 1,
-        Three = 3,
-        Four = 3,
-    }
-
     public static class SwitchExtensions
     {
         public static LinkSwitch? One(this IMultiSwitchEventParameters parameters) => Channel(parameters, ChannelId.One);

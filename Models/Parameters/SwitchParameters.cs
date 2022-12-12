@@ -8,15 +8,17 @@
         public string? Pulse { get; set; }
 
         [JsonProperty("pulseWidth")]
-        public int PulseWidth { get; set; }
+        public int? PulseWidth { get; set; }
 
         [JsonProperty("switch")]
         public SwitchState Switch { get; set; }
 
-        public override dynamic CreateParameters()
+        public override Parameters CreateParameters()
         {
-            var parameters = base.CreateParameters();
-            parameters.@switch = Switch;
+            var parameters = new SwitchParameters()
+            {
+                Switch = this.Switch
+            };
             return parameters;
         }
     }

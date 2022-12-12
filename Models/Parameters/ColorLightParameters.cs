@@ -17,10 +17,13 @@
         [JsonProperty("party")]
         public Party? Party { get; set; }
 
-        public override dynamic CreateParameters()
+        public override Parameters CreateParameters()
         {
-            var parameters = base.CreateParameters();
-            parameters.ltype = LightType;
+            var parameters = new ColorLightParameters()
+            {
+                LightType = this.LightType,
+                Switch = this.Switch,
+            };
             return parameters;
         }
     }
