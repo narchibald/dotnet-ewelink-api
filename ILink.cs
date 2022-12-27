@@ -1,6 +1,3 @@
-using EWeLink.Api.Models.EventParameters;
-using EWeLink.Api.Models.LightThemes;
-
 namespace EWeLink.Api
 {
     using System;
@@ -9,6 +6,8 @@ namespace EWeLink.Api
     using System.Threading.Tasks;
     using EWeLink.Api.Models;
     using EWeLink.Api.Models.Devices;
+    using EWeLink.Api.Models.EventParameters;
+    using EWeLink.Api.Models.LightThemes;
 
     public interface ILink
     {

@@ -1,5 +1,3 @@
-using EWeLink.Api.Models.EventParameters;
-
 namespace EWeLink.Api
 {
     using System;
@@ -7,6 +5,7 @@ namespace EWeLink.Api
     using System.Linq;
     using System.Reflection;
     using EWeLink.Api.Models.Devices;
+    using EWeLink.Api.Models.EventParameters;
 
     public class DeviceCache : IDeviceCache
     {

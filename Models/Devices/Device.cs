@@ -30,7 +30,7 @@
         public List<object>? Groups { get; set; }
 
         [JsonProperty("devGroups")]
-        public List<object> DevGroups { get; set; } = new();
+        public List<object> DevGroups { get; set; } = new ();
 
         [JsonProperty("deviceid")]
         public string DeviceId { get; set; }
@@ -54,10 +54,10 @@
         public DateTime CreatedAt { get; set; }
 
         [JsonProperty("shareUsersInfo")]
-        public List<object> ShareUsersInfo { get; set; } = new();
+        public List<object> ShareUsersInfo { get; set; } = new ();
 
         [JsonProperty("sharedTo")]
-        public List<object> SharedTo { get; set; } = new();
+        public List<object> SharedTo { get; set; } = new ();
 
         [JsonProperty("__v")]
         public int V { get; set; }

@@ -356,7 +356,7 @@
             return memoryStream.ToArray();
         }
 
-        private record PayLoad(bool encrypt, string iv, string data);
+        private record PayLoad(bool encrypt, string? iv, string data);
 
         private record SwitchResponse(long seq, int error, dynamic data);
     }

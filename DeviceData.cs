@@ -1,11 +1,9 @@
-﻿using System.Linq;
-
-namespace EWeLink.Api
+﻿namespace EWeLink.Api
 {
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Reflection;
-
     using Newtonsoft.Json;
 
     internal static class DeviceData

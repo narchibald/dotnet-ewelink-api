@@ -1,8 +1,7 @@
-using Newtonsoft.Json;
-
 namespace EWeLink.Api.Models.Parameters
 {
     using System.Linq;
+    using Newtonsoft.Json;
 
     public class TwoSwitchParameters : MultiSwitchParameters
     {
