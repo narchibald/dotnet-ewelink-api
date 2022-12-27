@@ -148,13 +148,16 @@
                 {
                     var jsonRaw = await response.Content.ReadAsStringAsync();
                     var switchResponse = JsonConvert.DeserializeObject<SwitchResponse>(jsonRaw);
-                    if (switchResponse?.error == 0)
+                    var errorCode = switchResponse?.error ?? 0;
+                    if (errorCode == 0)
                     {
                         return true;
                     }
                     else
                     {
-                        this.logger.LogInformation("Switch request failed with error code: {ErrorCode}", switchResponse?.error);
+                        var message = $"Switch request failed with error code: {errorCode}";
+                        this.logger.LogInformation(message);
+                        throw new LanControlRequestException(message, errorCode);
                     }
                 }
             }
