@@ -16,7 +16,6 @@ namespace EWeLink.Api.Extensions.DependencyInjection
                 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
                 {
                     AutomaticDecompression = DecompressionMethods.GZip,
-                    Proxy = new WebProxy("http://localhost:8888"),
                 });
             services.AddHttpClient();
 
