@@ -108,12 +108,7 @@
                 return null;
             }
 
-            object jsonData = data switch
-            {
-                MultiSwitchParameters switchParameters => switchParameters.Switches.First(),
-                _ => data
-            };
-
+            object jsonData = data;
             var json = JsonConvert.SerializeObject(jsonData, serializerSettings);
             var ePayload = lanInformation.EncryptionEnabled switch
             {
@@ -129,7 +124,7 @@
                     selfApikey = device.ApiKey,
                     ePayload.iv,
                     ePayload.encrypt,
-                    data = ePayload,
+                    ePayload.data,
                 };
 
             var uri = FormatSwitchUrl(lanInformation.IpAddress, lanInformation.Port, data is MultiSwitchParameters);
@@ -139,15 +134,15 @@
                 Headers =
                 {
                     Accept = { new MediaTypeWithQualityHeaderValue("application/json") },
-                    CacheControl = new CacheControlHeaderValue() { NoCache = true },
-                    // Connection = { "Keep-Alive" },
+                    CacheControl = new() { NoStore = true },
+                    Connection = { "Keep-Alive" },
                 },
                 Content = new StringContent(JsonConvert.SerializeObject(payload, serializerSettings), Encoding.UTF8, "application/json"),
             };
 
             try
             {
-                var httpClient = this.httpClientFactory.CreateClient();
+                var httpClient = this.httpClientFactory.CreateClient("eWeLink-lan");
                 var response = await httpClient.SendAsync(requestMessage);
                 if (response.IsSuccessStatusCode)
                 {
@@ -177,7 +172,7 @@
 
         private string FormatSwitchUrl(IPAddress ipAddress, int port, bool multiple) => FormatSwitchUrl(ipAddress.ToString(), port, multiple);
 
-        private string FormatSwitchUrl(string ipAddress, int port, bool multiple) => FormatBaseUrl(ipAddress, port) + "switch";// + (multiple ? "es" : string.Empty);
+        private string FormatSwitchUrl(string ipAddress, int port, bool multiple) => FormatBaseUrl(ipAddress, port) + "switch" + (multiple ? "es" : string.Empty);
 
         private string FormatBaseUrl(string ipAddress, int port) => $"http://{ipAddress}:{port}/zeroconf/";
 
@@ -332,16 +327,6 @@
 
         private PayLoad Encrypt(string deviceKey, string data)
         {
-            byte[] Pad(byte[] data_to_pad, int block_size)
-            {
-                var padding_len = block_size - data_to_pad.Length % block_size;
-
-                var padded = new byte[padding_len + data_to_pad.Length];
-                Array.Copy(data_to_pad, padded, data_to_pad.Length);
-                padded[padded.Length - 1] = Convert.ToByte(padding_len);
-                return padded;
-            }
-
             var eDeviceKey = Encoding.UTF8.GetBytes(deviceKey);
             using var md5 = MD5.Create();
             var key = md5.ComputeHash(eDeviceKey);
@@ -353,29 +338,19 @@
 
             var plaintext = Encoding.UTF8.GetBytes(data);
             using var aes = Aes.Create();
-            aes.Mode = CipherMode.CBC;
-            aes.BlockSize = key.Length * 8;
-            aes.KeySize = 128;
-            aes.Padding = PaddingMode.None;
-
-            var paddedPlaintext = Pad(plaintext, aes.BlockSize / 8);
             using var encryptor = aes.CreateEncryptor(key, iv);
-            var encryptedData = PerformCryptography(encryptor, paddedPlaintext);
+            var encryptedData = PerformCryptography(encryptor, plaintext);
             var dataEncoded = Convert.ToBase64String(encryptedData);
             return new PayLoad(true, ivBase64Encoded, dataEncoded);
         }
 
         private byte[] PerformCryptography(ICryptoTransform cryptoTransform, byte[] data)
         {
-            using (var memoryStream = new MemoryStream())
-            {
-                using (var cryptoStream = new CryptoStream(memoryStream, cryptoTransform, CryptoStreamMode.Write))
-                {
-                    cryptoStream.Write(data, 0, data.Length);
-                    cryptoStream.FlushFinalBlock();
-                    return memoryStream.ToArray();
-                }
-            }
+            using var memoryStream = new MemoryStream();
+            using var cryptoStream = new CryptoStream(memoryStream, cryptoTransform, CryptoStreamMode.Write);
+            cryptoStream.Write(data, 0, data.Length);
+            cryptoStream.FlushFinalBlock();
+            return memoryStream.ToArray();
         }
 
         private record PayLoad(bool encrypt, string iv, string data);

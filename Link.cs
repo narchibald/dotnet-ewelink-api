@@ -168,15 +168,15 @@
                     status = singleSwitch.Parameters.Switch;
                     break;
                 case ITwoSwitchDevice twoSwitch:
-                {
-                    status = channel switch
                     {
-                        ChannelId.One => twoSwitch.Parameters.One.Switch,
-                        ChannelId.Two => twoSwitch.Parameters.Two.Switch,
-                        _ => throw new ArgumentOutOfRangeException(nameof(channel))
-                    };
-                    switches = twoSwitch.Parameters.Switches;
-                }
+                        status = channel switch
+                        {
+                            ChannelId.One => twoSwitch.Parameters.One.Switch,
+                            ChannelId.Two => twoSwitch.Parameters.Two.Switch,
+                            _ => throw new ArgumentOutOfRangeException(nameof(channel))
+                        };
+                        switches = twoSwitch.Parameters.Switches;
+                    }
 
                     break;
                 case IThreeSwitchDevice threeSwitchDevice:

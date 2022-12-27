@@ -4,7 +4,7 @@ namespace EWeLink.Api.Models
     {
         One = 0,
         Two = 1,
-        Three = 3,
-        Four = 4,
+        Three = 2,
+        Four = 3,
     }
 }
