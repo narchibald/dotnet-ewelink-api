@@ -9,7 +9,7 @@
     using Newtonsoft.Json;
 
     [JsonConverter(typeof(DeviceConverter))]
-    public abstract class Device
+    public abstract class Device : IDevice
     {
         [JsonProperty("_id")]
         public string? Id { get; set; }
@@ -33,7 +33,7 @@
         public List<object> DevGroups { get; set; } = new ();
 
         [JsonProperty("deviceid")]
-        public string DeviceId { get; set; }
+        public string? DeviceId { get; set; }
 
         [JsonProperty("name")]
         public string? Name { get; set; }
@@ -45,7 +45,7 @@
         public string? ApiKey { get; set; }
 
         [JsonProperty("extra")]
-        public Extra Extra { get; set; }
+        public Extra? Extra { get; set; }
 
         [JsonProperty("settings")]
         public Settings? Settings { get; set; }
@@ -78,7 +78,7 @@
         public DateTime? OfflineTime { get; set; }
 
         [JsonProperty("devicekey")]
-        public string DeviceKey { get; set; }
+        public string? DeviceKey { get; set; }
 
         [JsonProperty("deviceUrl")]
         public string? DeviceUrl { get; set; }
@@ -93,10 +93,10 @@
         public bool ShowBrand { get; set; }
 
         [JsonProperty("brandLogoUrl")]
-        public string BrandLogoUrl { get; set; }
+        public string BrandLogoUrl { get; set; } = string.Empty;
 
         [JsonProperty("devConfig")]
-        public DevConfig DevConfig { get; set; }
+        public DevConfig? DeviceConfiguration { get; set; }
 
         [JsonProperty("uiid")]
         public int Uiid { get; set; }

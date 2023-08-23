@@ -14,11 +14,11 @@
     {
         EventAction Action { get; set; }
 
-        public string DeviceId { get; }
+        public string? DeviceId { get; }
 
         public int Uiid { get; }
 
-        public string Apikey { get; }
+        public string? Apikey { get; }
 
         public string UserAgent { get; }
 
@@ -38,16 +38,16 @@
         public EventAction Action { get; set; }
 
         [JsonProperty("deviceid")]
-        public string DeviceId { get; set; }
+        public string? DeviceId { get; set; }
 
         [JsonProperty("uiid")]
         public int Uiid { get; set; }
 
         [JsonProperty("apikey")]
-        public string Apikey { get; set; }
+        public string? Apikey { get; set; }
 
         [JsonProperty("userAgent")]
-        public string UserAgent { get; set; }
+        public string UserAgent { get; set; } = string.Empty;
 
         [JsonProperty("d_seq")]
         public long DSeq { get; set; }
@@ -56,7 +56,7 @@
         public T Parameters { get; set; }
 
         [JsonProperty("from")]
-        public string From { get; set; }
+        public string From { get; set; } = string.Empty;
 
         // This is not a standard property.
         [JsonProperty("eventSource")]

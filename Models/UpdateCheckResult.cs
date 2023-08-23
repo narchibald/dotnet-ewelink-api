@@ -8,7 +8,7 @@
             this.Info = info;
         }
 
-        public string Deviceid => this.Info.DeviceId;
+        public string? DeviceId => this.Info.DeviceId;
 
         public bool HasUpdate { get; }
 

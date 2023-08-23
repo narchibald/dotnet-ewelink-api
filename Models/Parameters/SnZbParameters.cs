@@ -9,13 +9,16 @@
     public class SnZbParameters : Parameters
     {
         [JsonProperty("subDevId")]
-        public string SubDeviceId { get; set; }
+        public string? SubDeviceId { get; set; }
 
         [JsonProperty("parentid")]
-        public string ParentId { get; set; }
+        public string? ParentId { get; set; }
 
         [JsonProperty("battery")]
         public int Battery { get; set; }
+
+        [JsonProperty("timeZone")]
+        public decimal? TimeZone { get; set; }
 
         [JsonProperty("trigTime")]
         [JsonConverter(typeof(UnixTimeMillisecondsConverter))]

@@ -5,6 +5,6 @@
     public class OnlyDevice
     {
         [JsonProperty("ota")]
-        public string Ota { get; set; }
+        public string? Ota { get; set; }
     }
 }

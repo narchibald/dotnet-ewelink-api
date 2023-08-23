@@ -20,7 +20,7 @@
         {
             DeviceTypes = typeof(LinkEventConverter).Assembly.ExportedTypes
                 .Select(x => new { Attribute = x.GetCustomAttribute(typeof(EventDeviceIdentifierAttribute)) as EventDeviceIdentifierAttribute, Type = x })
-                .Where(x => x.Attribute != null).SelectMany(x => x.Attribute.Uiids.Select(i => new { Uiid = i, Type = x.Type }))
+                .Where(x => x.Attribute != null).SelectMany(x => x.Attribute!.Uiids.Select(i => new { Uiid = i, Type = x.Type }))
                 .ToDictionary(x => x.Uiid, v => v.Type);
         }
 
@@ -50,7 +50,7 @@
             var jsonObject = JObject.Load(reader);
             var deviceId = jsonObject.Value<string>("deviceid");
             var deviceUiid = jsonObject.Value<int?>("uiid");
-            Type eventType = objectType;//GetTypeForUiid(deviceUiid);
+            Type eventType = objectType; // GetTypeForUiid(deviceUiid);
 
             try
             {

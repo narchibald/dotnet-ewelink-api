@@ -11,7 +11,7 @@
         decimal? Humidity { get; set; }
     }
 
-    [EventDeviceIdentifierAttribute(1770)]
+    [EventDeviceIdentifier(1770)]
     public class SnZbThermostatParameters
         : SnZbEventParameters, ISnZbThermostatParameters
     {

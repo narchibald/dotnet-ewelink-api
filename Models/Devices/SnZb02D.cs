@@ -2,8 +2,8 @@
 {
     using EWeLink.Api.Models.Parameters;
 
-    [DeviceIdentifier(1770)]
-    public class SnZb02 : Device<SnZbThermostatParameters>
+    [DeviceIdentifier(7014)]
+    public class SnZb02D : Device<SnZbThermostatParameters>
     {
     }
 }

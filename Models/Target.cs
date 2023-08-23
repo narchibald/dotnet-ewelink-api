@@ -5,12 +5,12 @@
     public class Target
     {
         [JsonProperty("targetHigh")]
-        public string TargetHigh { get; set; }
+        public decimal TargetHigh { get; set; }
 
         [JsonProperty("reaction")]
-        public Reaction Reaction { get; set; }
+        public Reaction? Reaction { get; set; }
 
         [JsonProperty("targetLow")]
-        public string TargetLow { get; set; }
+        public decimal TargetLow { get; set; }
     }
 }

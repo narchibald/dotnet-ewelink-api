@@ -10,7 +10,7 @@
         KeyTrigger? Key { get; set; }
     }
 
-    [EventDeviceIdentifierAttribute(1000)]
+    [EventDeviceIdentifier(1000)]
     public class SnZbButtonEventParameters
         : SnZbEventParameters, ISnZbButtonEventParameters
     {

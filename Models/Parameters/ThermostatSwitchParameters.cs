@@ -17,5 +17,8 @@
         [JsonProperty("currentHumidity")]
         [JsonConverter(typeof(SensorJsonConverter))]
         public decimal? Humidity { get; set; }
+
+        [JsonProperty("sensorType")]
+        public string? SensorType { get; set; }
     }
 }

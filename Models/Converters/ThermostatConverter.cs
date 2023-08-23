@@ -45,7 +45,7 @@
                 return null;
             }
 
-            var value = decimal.Parse(new string(val.Take(val.Length - 2).Concat(new[] { '.' }).Concat(val.Skip(val.Length - 2)).ToArray()));
+            var value = decimal.Parse(new string(val.Take(val!.Length - 2).Concat(new[] { '.' }).Concat(val.Skip(val.Length - 2)).ToArray()));
             return Convert.ChangeType(value, nullableType ?? objectType);
         }
 

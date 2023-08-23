@@ -23,7 +23,7 @@ namespace EWeLink.Api
 
         Task<(string? Email, string? Region)> GetRegion();
 
-        Task<Device> GetDevice(string deviceId);
+        Task<IDevice?> GetDevice(string deviceId);
 
         int GetDeviceChannelCountByUuid(int uuid);
 
@@ -39,11 +39,11 @@ namespace EWeLink.Api
 
         void EnableLanControl();
 
-        Task<List<Device>> GetDevices();
+        Task<List<IDevice>> GetDevices();
 
         Task<List<UpdateCheckResult>> CheckAllDeviceUpdates();
 
-        Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<Device> devices);
+        Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<IDevice> devices);
 
         Task<UpdateCheckResult> CheckDeviceUpdate(string deviceId);
 

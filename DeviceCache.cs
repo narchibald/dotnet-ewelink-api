@@ -10,7 +10,7 @@ namespace EWeLink.Api
     public class DeviceCache : IDeviceCache
     {
         private static readonly Dictionary<int, Type> UiidToEventParameterTypes;
-        private readonly Dictionary<string, Device> deviceIdToDevices = new ();
+        private readonly Dictionary<string, IDevice> deviceIdToDevices = new ();
         private readonly Dictionary<string, int> deviceIdTUiid = new ();
 
         static DeviceCache()
@@ -31,7 +31,7 @@ namespace EWeLink.Api
             return null;
         }
 
-        public bool TryGetDevice(string deviceId, out Device? device)
+        public bool TryGetDevice(string deviceId, out IDevice? device)
         {
             device = null;
             if (this.deviceIdToDevices.TryGetValue(deviceId, out var val))
@@ -65,7 +65,7 @@ namespace EWeLink.Api
             return false;
         }
 
-        public Device? GetDevice(string deviceId)
+        public IDevice? GetDevice(string deviceId)
         {
             if (this.deviceIdToDevices.TryGetValue(deviceId, out var device))
             {
@@ -75,7 +75,7 @@ namespace EWeLink.Api
             return null;
         }
 
-        public IEnumerable<Device> UpdateCache(IEnumerable<Device> devices)
+        public IEnumerable<IDevice> UpdateCache(IEnumerable<IDevice> devices)
         {
             foreach (var device in devices)
             {
@@ -85,17 +85,20 @@ namespace EWeLink.Api
             return devices;
         }
 
-        public Device UpdateCache(Device device)
+        public IDevice UpdateCache(IDevice device)
         {
-            if (!this.deviceIdToDevices.ContainsKey(device.DeviceId))
+            if (device.DeviceId != null)
             {
-                this.deviceIdToDevices.Add(device.DeviceId, device);
-                this.deviceIdTUiid.Add(device.DeviceId, device.Uiid);
-            }
-            else
-            {
-                this.deviceIdToDevices[device.DeviceId] = device;
-                this.deviceIdTUiid[device.DeviceId] = device.Uiid;
+                if (!this.deviceIdToDevices.ContainsKey(device.DeviceId))
+                {
+                    this.deviceIdToDevices.Add(device.DeviceId, device);
+                    this.deviceIdTUiid.Add(device.DeviceId, device.Uiid);
+                }
+                else
+                {
+                    this.deviceIdToDevices[device.DeviceId] = device;
+                    this.deviceIdTUiid[device.DeviceId] = device.Uiid;
+                }
             }
 
             return device;

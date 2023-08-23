@@ -2,7 +2,7 @@
 {
     using System;
 
-    [AttributeUsage(AttributeTargets.Class)]
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     internal class DeviceIdentifierAttribute : Attribute
     {
         public DeviceIdentifierAttribute(int uiid)

@@ -6,7 +6,7 @@
         SwitchState Switch { get; set; }
     }
 
-    [EventDeviceIdentifierAttribute(6)]
+    [EventDeviceIdentifier(1, 6)]
     public class SwitchEventParameters
         : EventParameters, ISwitchEventParameters
     {

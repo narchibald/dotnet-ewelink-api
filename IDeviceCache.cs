@@ -8,16 +8,16 @@ namespace EWeLink.Api
     {
         int? GetDevicesUiid(string deviceId);
 
-        Device? GetDevice(string deviceId);
+        IDevice? GetDevice(string deviceId);
 
-        bool TryGetDevice(string deviceId, out Device? device);
+        bool TryGetDevice(string deviceId, out IDevice? device);
 
         Type? GetEventParameterTypeForUiid(int uiid);
 
         bool TryGetEventParameterTypeForUiid(int uiid, out Type? type);
 
-        IEnumerable<Device> UpdateCache(IEnumerable<Device> devices);
+        IEnumerable<IDevice> UpdateCache(IEnumerable<IDevice> devices);
 
-        Device UpdateCache(Device device);
+        IDevice UpdateCache(IDevice device);
     }
 }

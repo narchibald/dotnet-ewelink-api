@@ -5,12 +5,15 @@ namespace EWeLink.Api.Models.Parameters
     public class SubDevice
     {
         [JsonProperty("subDevId")]
-        public string SubDevId { get; set; }
+        public string? SubDeviceId { get; set; }
 
         [JsonProperty("deviceid")]
-        public string Deviceid { get; set; }
+        public string? Deviceid { get; set; }
 
         [JsonProperty("uiid")]
-        public string Uiid { get; set; }
+        public int Uiid { get; set; }
+
+        [JsonProperty("index")]
+        public int Index { get; set; }
     }
 }

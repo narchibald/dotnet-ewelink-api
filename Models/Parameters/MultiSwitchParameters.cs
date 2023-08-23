@@ -8,5 +8,8 @@
     {
         [JsonProperty("switches")]
         public LinkSwitch[] Switches { get; set; } = Array.Empty<LinkSwitch>();
+
+        [JsonProperty("configure")]
+        public LinkSwitchConfiguration[] Configuration { get; set; } = Array.Empty<LinkSwitchConfiguration>();
     }
 }

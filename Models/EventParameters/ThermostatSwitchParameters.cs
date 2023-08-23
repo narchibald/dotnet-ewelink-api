@@ -3,17 +3,19 @@
     using EWeLink.Api.Models.Converters;
     using Newtonsoft.Json;
 
-    public interface IThermostatParameters
+    public interface IThermostatSwitchParameters
         : IEventParameters
     {
         decimal? Temperature { get; set; }
 
         decimal? Humidity { get; set; }
+
+        string? SensorType { get; set; }
     }
 
-    [EventDeviceIdentifierAttribute(15)]
-    public class ThermostatParameters
-        : EventParameters, IThermostatParameters
+    [EventDeviceIdentifier(15)]
+    public class ThermostatSwitchParameters
+        : SwitchEventParameters, IThermostatSwitchParameters
     {
         [JsonProperty("currentTemperature")]
         [JsonConverter(typeof(SensorJsonConverter))]
@@ -22,5 +24,8 @@
         [JsonProperty("currentHumidity")]
         [JsonConverter(typeof(SensorJsonConverter))]
         public decimal? Humidity { get; set; }
+
+        [JsonProperty("sensorType")]
+        public string? SensorType { get; set; }
     }
 }

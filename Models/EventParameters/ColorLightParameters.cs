@@ -3,7 +3,7 @@
     using EWeLink.Api.Models.LightThemes;
     using Newtonsoft.Json;
 
-    [EventDeviceIdentifierAttribute(104)]
+    [EventDeviceIdentifier(104)]
     public class ColorLightParameters
         : SwitchEventParameters
     {

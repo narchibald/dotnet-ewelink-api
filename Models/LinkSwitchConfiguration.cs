@@ -2,12 +2,12 @@
 {
     using Newtonsoft.Json;
 
-    public class LinkSwitch
+    public class LinkSwitchConfiguration
     {
         [JsonProperty("outlet")]
         public int Outlet { get; set; }
 
-        [JsonProperty("switch")]
-        public SwitchState Switch { get; set; }
+        [JsonProperty("startup")]
+        public SwitchState Startup { get; set; }
     }
 }

@@ -102,7 +102,7 @@ namespace EWeLink.Api
             var deviceUiid = jsonObject.Value<int?>("uiid");
             if (!deviceUiid.HasValue)
             {
-                deviceUiid = this.deviceCache.GetDevicesUiid(deviceId);
+                deviceUiid = this.deviceCache.GetDevicesUiid(deviceId ?? string.Empty);
                 if (deviceUiid.HasValue)
                 {
                     jsonObject.Add("uiid", new JValue(deviceUiid.Value));
@@ -110,31 +110,34 @@ namespace EWeLink.Api
             }
 
             Type deviceType = deviceUiid.HasValue ? this.deviceCache.GetEventParameterTypeForUiid(deviceUiid.Value) ?? typeof(EventParameters) : typeof(EventParameters);
-            var jsonObjectParams = (JObject)jsonObject.GetValue("params");
-            var device = this.deviceCache.GetDevice(deviceId);
-            if (device is IDevice<Parameters> typedDevice)
+            var jsonObjectParams = (JObject?)jsonObject.GetValue("params");
+            if (jsonObjectParams != null)
             {
-                typedDevice.Parameters.Update(jsonObjectParams.ToString());
-            }
-
-            if (typeof(SnZbEventParameters).IsAssignableFrom(deviceType) && jsonObjectParams != null)
-            {
-                if (jsonObjectParams.Count == 2 && new[] { "battery", "trigTime" }.All(jsonObjectParams.ContainsKey))
+                var device = this.deviceCache.GetDevice(deviceId ?? string.Empty);
+                if (device is IDevice<Parameters> typedDevice)
                 {
-                    deviceType = typeof(SnZbBatteryEventParameter);
+                    typedDevice.Parameters.Update(jsonObjectParams.ToString());
                 }
-            }
 
-            if (jsonObject.TryGetValue("proxyMsgTime", out var jvalue))
-            {
-                jsonObjectParams.Add("trigTime", jvalue);
-            }
-
-            if (typeof(EventParameters).IsAssignableFrom(deviceType) && jsonObjectParams != null)
-            {
-                if (!jsonObjectParams.ContainsKey("trigTime"))
+                if (typeof(SnZbEventParameters).IsAssignableFrom(deviceType))
                 {
-                    jsonObjectParams.Add("trigTime", new JValue(DateTimeOffset.Now.ToUnixTimeMilliseconds()));
+                    if (jsonObjectParams.Count == 2 && new[] { "battery", "trigTime" }.All(jsonObjectParams.ContainsKey))
+                    {
+                        deviceType = typeof(SnZbBatteryEventParameter);
+                    }
+                }
+
+                if (jsonObject.TryGetValue("proxyMsgTime", out var jvalue))
+                {
+                    jsonObjectParams.Add("trigTime", jvalue);
+                }
+
+                if (typeof(EventParameters).IsAssignableFrom(deviceType))
+                {
+                    if (!jsonObjectParams.ContainsKey("trigTime"))
+                    {
+                        jsonObjectParams.Add("trigTime", new JValue(DateTimeOffset.Now.ToUnixTimeMilliseconds()));
+                    }
                 }
             }
 

@@ -20,8 +20,8 @@
         static DeviceConverter()
         {
             DeviceTypes = typeof(DeviceConverter).Assembly.ExportedTypes
-                .Select(x => new { Attribute = x.GetCustomAttribute(typeof(DeviceIdentifierAttribute)) as DeviceIdentifierAttribute, Type = x })
-                .Where(x => x.Attribute != null).ToDictionary(x => x.Attribute.Uiid, v => v.Type);
+                .SelectMany(x => x.GetCustomAttributes<DeviceIdentifierAttribute>().Select(a => new { Attribute = a, Type = x }))
+                .Where(x => x.Attribute != null).ToDictionary(x => x.Attribute!.Uiid, v => v.Type);
         }
 
         // Disables the converter in a thread-safe manner.
@@ -48,6 +48,11 @@
         public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             var jsonObject = JObject.Load(reader);
+            if (!jsonObject.Value<int?>("uiid").HasValue && jsonObject["extra"]?.Value<int?>("uiid") != null)
+            {
+                jsonObject["uiid"] = jsonObject["extra"]?.Value<int>("uiid");
+            }
+
             var deviceUiid = jsonObject.Value<int>("uiid");
             if (!DeviceTypes.TryGetValue(deviceUiid, out var deviceType))
             {

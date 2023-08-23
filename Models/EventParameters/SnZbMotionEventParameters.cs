@@ -10,7 +10,7 @@
         Motion Motion { get; set; }
     }
 
-    [EventDeviceIdentifierAttribute(2026)]
+    [EventDeviceIdentifier(2026)]
     public class SnZbMotionEventParameters
         : SnZbEventParameters, ISnZbMotionEventParameters
     {

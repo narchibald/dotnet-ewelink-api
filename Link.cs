@@ -21,9 +21,9 @@
 
     public class Link : ILink
     {
-        private const string AppId = "YzfeftUVcZ6twZw1OoVKPRFYTrGEg01Q";
+        private const string AppId = "4s1FXKC9FaGfoqXhmXSJneb3qcm1gOak";//"YzfeftUVcZ6twZw1OoVKPRFYTrGEg01Q";
 
-        private const string AppSecret = "4G91qSoboqYO4Y0XJ0LPPKIsq8reHdfa";
+        private const string AppSecret = "oKvCM06gvwkRbfetd6qWRrbC3rFrbIpV";//"4G91qSoboqYO4Y0XJ0LPPKIsq8reHdfa";
 
         private readonly IDeviceCache deviceCache;
 
@@ -69,7 +69,7 @@
 
         public event Action<ILinkEvent<IEventParameters>>? LanParametersUpdated;
 
-        public Uri ApiUri => new Uri($"https://{this.region}-api.coolkit.cc:8080/api");
+        public Uri ApiUri => new Uri($"https://{this.region}-apia.coolkit.cc");
 
         public Uri OtaUri => new Uri($"https://{this.region}-ota.coolkit.cc:8080/otaother");
 
@@ -118,10 +118,7 @@
             return (credentials.User?.Email, credentials.Region);
         }
 
-        public Task<Device> GetDevice(string deviceId)
-        {
-            return this.GetDevice(deviceId, false);
-        }
+        public Task<IDevice?> GetDevice(string deviceId) => this.GetDevice(deviceId, false);
 
         public int GetDeviceChannelCountByUuid(int uuid)
         {
@@ -137,7 +134,12 @@
         public async Task<int> GetDeviceChannelCount(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
-            var uiid = device.Extra.Extended.Uiid;
+            if (device.Extra is null)
+            {
+                throw new ArgumentNullException(nameof(device.Extra));
+            }
+
+            var uiid = device.Extra.Uiid;
             var switchesAmount = this.GetDeviceChannelCountByUuid(uiid);
 
             return switchesAmount;
@@ -146,13 +148,17 @@
         public async Task SetDevicePowerState(string deviceId, SwitchStateChange state, ChannelId channel = ChannelId.One)
         {
             var device = await this.GetDevice(deviceId);
-
             if (device == null)
             {
                 throw new KeyNotFoundException("The device id was not found");
             }
 
-            var uiid = device.Extra.Extended.Uiid;
+            if (device.Extra is null)
+            {
+                throw new ArgumentNullException(nameof(device.Extra));
+            }
+
+            var uiid = device.Extra.Uiid;
 
             var switchesAmount = this.GetDeviceChannelCountByUuid(uiid);
             if (switchesAmount > 0 && switchesAmount < (int)channel)
@@ -348,28 +354,29 @@
             this.lanControl.Start();
         }
 
-        public async Task<List<Device>> GetDevices()
+        public async Task<List<IDevice>> GetDevices()
         {
             dynamic response = await this.MakeRequest(
-                                   "/user/device",
+                                   "v2/device/thing",
                                    query: new
                                               {
                                                   lang = "en",
-                                                  appid = AppId,
-                                                  ts = Utilities.Timestamp,
-                                                  version = 8,
-                                                  getTags = 1,
+                                                  num = 0,
                                               });
 
-            JToken jtoken = response.devicelist;
+            JToken jtoken = response.data.thingList;
             if (jtoken == null)
             {
                 throw new HttpRequestException(NiceError.Custom[CustomErrors.NoDevices]);
             }
 
-            var devicelist = jtoken.ToObject<List<Device>>();
-            this.deviceCache.UpdateCache(devicelist);
-            return devicelist;
+            var devicelist = jtoken.ToObject<List<Thing>>()?.Select(x => x.ItemData).ToList();
+            if (devicelist != null)
+            {
+                this.deviceCache.UpdateCache(devicelist);
+            }
+
+            return devicelist ?? new List<IDevice>();
         }
 
         public async Task<List<UpdateCheckResult>> CheckAllDeviceUpdates()
@@ -383,7 +390,7 @@
                 .ToList();
         }
 
-        public async Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<Device> devices)
+        public async Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<IDevice> devices)
         {
             var genericDevices = devices.Cast<Device<Parameters>>().Where(x => x.Parameters is LinkParameters).Cast<Device<LinkParameters>>();
             var deviceInfoList = this.GetFirmwareUpdateInfo(genericDevices);
@@ -396,7 +403,7 @@
 
             int returnCode = response.rtnCode;
             JToken token = response.upgradeInfoList;
-            return token.ToObject<List<UpgradeInfo>>();
+            return token.ToObject<List<UpgradeInfo>>() ?? new List<UpgradeInfo>();
         }
 
         public async Task<UpdateCheckResult> CheckDeviceUpdate(string deviceId)
@@ -408,24 +415,33 @@
             var result = await this.CheckDeviceUpdates(new[] { device });
 
             var info = result.FirstOrDefault();
-            return new UpdateCheckResult(info.Version != genericDevice.Parameters.FirmWareVersion, info);
+            return new UpdateCheckResult(info!.Version != genericDevice!.Parameters.FirmWareVersion, info);
         }
 
         public async Task<string?> GetFirmwareVersion(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
             var genericDevice = device as Device<LinkParameters>;
-            return genericDevice.Parameters.FirmWareVersion;
+            return genericDevice!.Parameters.FirmWareVersion;
         }
 
         public async Task<Credentials> GetCredentials()
         {
-            var body = this.CredentialsPayload(email: this.email, phoneNumber: this.phoneNumber, password: this.password);
+            //var body = this.CredentialsPayload(email: this.email, phoneNumber: this.phoneNumber, password: this.password);
 
-            var uri = new Uri($"{this.ApiUri}/user/login");
+            var body = new
+            {
+                password,
+                countryCode = "+86",
+                this.email,
+            };
+            var data = JsonConvert.SerializeObject(body);
+
+            var uri = new Uri($"{this.ApiUri}v2/user/login");
             var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
-            httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(body)}");
-            httpMessage.Content = new StringContent(JsonConvert.SerializeObject(body));
+            httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(data)}");
+            httpMessage.Headers.Add("X-CK-Appid", AppId);
+            httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
 
             var httpClient = httpClientFactory.CreateClient();
             var response = await httpClient.SendAsync(httpMessage);
@@ -454,8 +470,8 @@
             }
 
             JToken token = json;
-            var credentials = token.ToObject<Credentials>();
-            this.apiKey = credentials.User.Apikey;
+            var credentials = token["data"].ToObject<Credentials>() ?? new Credentials();
+            this.apiKey = credentials.User?.Apikey;
             this.at = credentials.At;
             return credentials;
         }
@@ -485,6 +501,7 @@
             var uri = uriBuilder.Uri;
             var httpMessage = new HttpRequestMessage(method, uri);
             httpMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", this.at);
+            httpMessage.Headers.Add("X-CK-Appid", AppId);
 
             if (body != null)
             {
@@ -514,9 +531,9 @@
             return json;
         }
 
-        private async Task<Device> GetDevice(string deviceId, bool noCacheLoad)
+        private async Task<IDevice?> GetDevice(string deviceId, bool noCacheLoad)
         {
-            if (!noCacheLoad && this.deviceCache.TryGetDevice(deviceId, out Device? device))
+            if (!noCacheLoad && this.deviceCache.TryGetDevice(deviceId, out IDevice? device))
             {
                 return device!;
             }
@@ -539,8 +556,12 @@
             }
 
             device = token.ToObject<Device>();
+            if (device != null)
+            {
+                return this.deviceCache.UpdateCache(device);
+            }
 
-            return this.deviceCache.UpdateCache(device);
+            return device;
         }
 
         private bool CheckLoginParameters(
@@ -569,6 +590,14 @@
                 select p.Name + "=" + System.Web.HttpUtility.UrlEncode(p.GetValue(qs, null).ToString());
 
             return string.Join("&", properties.ToArray());
+        }
+
+        private string MakeAuthorizationSign(string data)
+        {
+            var crypto = HMACSHA256.Create("HmacSHA256");
+            crypto.Key = Encoding.UTF8.GetBytes(AppSecret);
+            var hash = crypto.ComputeHash(Encoding.UTF8.GetBytes(data));
+            return Convert.ToBase64String(hash);
         }
 
         private string MakeAuthorizationSign(PayLoad? body)
@@ -603,12 +632,14 @@
 
         private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device<LinkParameters>> devices)
         {
-            return devices.Select(d => new FirmwareUpdateInfo
-                                           {
-                                               Model = d.Extra.Extended.Model,
-                                               Version = d.Parameters.Version,
-                                               DeviceId = d.DeviceId,
-                                           }).ToList();
+            return devices.Select(
+                    d => new FirmwareUpdateInfo
+                    {
+                        Model = d.Extra?.Model,
+                        Version = d.Parameters.Version,
+                        DeviceId = d.DeviceId,
+                    })
+                .ToList();
         }
 
         private class PayLoad
@@ -625,7 +656,7 @@
             }
 
             [JsonProperty("appid")]
-            public string AppId { get; }
+            public string? AppId { get; }
 
             [JsonProperty("email")]
             public string? Email { get; }

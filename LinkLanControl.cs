@@ -27,7 +27,7 @@
     {
         event Action<ILinkEvent<IEventParameters>>? ParametersUpdated;
 
-        Task<bool?> SendSwitchRequest(Device device, Parameters data);
+        Task<bool?> SendSwitchRequest(IDevice device, Parameters data);
 
         void Start();
 
@@ -100,12 +100,17 @@
             answerLock.Dispose();
         }
 
-        public async Task<bool?> SendSwitchRequest(Device device, Parameters data)
+        public async Task<bool?> SendSwitchRequest(IDevice device, Parameters data)
         {
             var lanInformation = device.LanControl;
             if (lanInformation == null)
             {
                 return null;
+            }
+
+            if (device.DeviceKey is null)
+            {
+                throw new ArgumentNullException(nameof(device.DeviceKey));
             }
 
             object jsonData = data;
@@ -134,7 +139,7 @@
                 Headers =
                 {
                     Accept = { new MediaTypeWithQualityHeaderValue("application/json") },
-                    CacheControl = new() { NoStore = true },
+                    CacheControl = new () { NoStore = true },
                     Connection = { "Keep-Alive" },
                 },
                 Content = new StringContent(JsonConvert.SerializeObject(payload, serializerSettings), Encoding.UTF8, "application/json"),
@@ -225,6 +230,11 @@
                 {
                     var iv = information["iv"];
                     var deviceKey = device.DeviceKey;
+                    if (deviceKey is null)
+                    {
+                        return;
+                    }
+
                     json = Decrypt(deviceKey, iv, json);
                 }
 

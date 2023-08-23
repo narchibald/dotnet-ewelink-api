@@ -21,7 +21,7 @@
                     LoadData();
                 }
 
-                return deviceChannelCount;
+                return deviceChannelCount ?? new Dictionary<string, int>();
             }
         }
 
@@ -34,7 +34,7 @@
                     LoadData();
                 }
 
-                return deviceTypeUuid;
+                return deviceTypeUuid ?? new Dictionary<int, string>();
             }
         }
 
@@ -45,7 +45,7 @@
             deviceTypeUuid = LoadAndDeserializeResource<Dictionary<int, string>>("devices-type-uuid.json");
         }
 
-        private static T LoadAndDeserializeResource<T>(string resourceName)
+        private static T? LoadAndDeserializeResource<T>(string resourceName)
         {
             var assembly = typeof(DeviceData).GetTypeInfo().Assembly;
             var serializer = new JsonSerializer();

@@ -5,6 +5,6 @@
     public class Room
     {
         [JsonProperty("id")]
-        public string Id { get; set; }
+        public string? Id { get; set; }
     }
 }

@@ -13,16 +13,16 @@
         public int Rssi { get; set; }
 
         [JsonProperty("staMac")]
-        public string StaMac { get; set; }
+        public string? StaMac { get; set; }
 
         [JsonProperty("timers")]
-        public List<Timer> Timers { get; set; }
+        public List<Timer> Timers { get; set; } = new ();
 
         [JsonProperty("swMode")]
         public int SwMode { get; set; }
 
         [JsonProperty("version")]
-        public string Version { get; set; }
+        public string? Version { get; set; }
 
         [JsonProperty("startup")]
         public string? Startup { get; set; }
@@ -37,6 +37,6 @@
         public string? PartnerApikey { get; set; }
 
         [JsonProperty("only_device")]
-        public OnlyDevice OnlyDevice { get; set; }
+        public OnlyDevice? OnlyDevice { get; set; }
     }
 }
