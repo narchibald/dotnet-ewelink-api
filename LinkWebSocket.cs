@@ -116,7 +116,11 @@ namespace EWeLink.Api
                 var device = this.deviceCache.GetDevice(deviceId ?? string.Empty);
                 if (device is IDevice<Parameters> typedDevice)
                 {
-                    typedDevice.Parameters.Update(jsonObjectParams.ToString());
+                    var updateResult = typedDevice.Parameters.Update(jsonObjectParams.ToString());
+                    if (typeof(IMultiSwitchEventParameters).IsAssignableFrom(deviceType) && updateResult.HasValue)
+                    {
+                        jsonObjectParams.Add("triggeredOutlet", updateResult.Value);
+                    }
                 }
 
                 if (typeof(SnZbEventParameters).IsAssignableFrom(deviceType))

@@ -6,6 +6,8 @@ namespace EWeLink.Api.Models.EventParameters
         LinkSwitch One { get; }
 
         LinkSwitch Two { get; }
+
+         int TriggeredOutlet { get; set; }
     }
 
     [EventDeviceIdentifier(7)]

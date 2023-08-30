@@ -10,8 +10,12 @@
 
         public virtual Parameters CreateParameters() => new Parameters();
 
-        public void Update(dynamic data) => Update(JsonConvert.SerializeObject(data, new StringEnumConverter()));
+        public int? Update(dynamic data) => Update(JsonConvert.SerializeObject(data, new StringEnumConverter()));
 
-        public void Update(string jsonData) => JsonConvert.PopulateObject(jsonData, this);
+        public virtual int? Update(string jsonData)
+        {
+            JsonConvert.PopulateObject(jsonData, this);
+            return null;
+        }
     }
 }

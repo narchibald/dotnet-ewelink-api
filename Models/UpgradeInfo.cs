@@ -6,9 +6,6 @@
 
     public class UpgradeInfo
     {
-        [JsonProperty("bizRtnCode")]
-        public int BizRtnCode { get; set; }
-
         [JsonProperty("deviceid")]
         public string? DeviceId { get; set; }
 
@@ -18,8 +15,11 @@
         [JsonProperty("version")]
         public string Version { get; set; } = string.Empty;
 
-        [JsonProperty("upgradeText")]
-        public string UpgradeText { get; set; } = string.Empty;
+        [JsonProperty("type")]
+        public string Type { get; set; } = string.Empty;
+
+        [JsonProperty("forceTime")]
+        public string ForceTime { get; set; } = string.Empty;
 
         [JsonProperty("binList")]
         public List<Binary> Binaries { get; set; } = new ();

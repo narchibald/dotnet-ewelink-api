@@ -255,15 +255,12 @@
             }
 
             dynamic response = await this.MakeRequest(
-                                   "/user/device/status",
+                                   "v2/device/thing/status",
                                    body: new
                                              {
-                                                 deviceid = deviceId,
-                                                 appid = AppId,
+                                                 type = 1,
+                                                 id = deviceId,
                                                  @params = parameters,
-                                                 nonce = Utilities.Nonce,
-                                                 ts = Utilities.Timestamp,
-                                                 version = 8,
                                              },
                                    method: HttpMethod.Post);
 
@@ -306,15 +303,12 @@
             }
 
             dynamic response = await this.MakeRequest(
-                "/user/device/status",
+                "v2/device/thing/status",
                 body: new
                 {
-                    deviceid = deviceId,
-                    appid = AppId,
+                    type = 1,
+                    id = deviceId,
                     @params = deviceParameters,
-                    nonce = Utilities.Nonce,
-                    ts = Utilities.Timestamp,
-                    version = 8,
                 },
                 method: HttpMethod.Post);
 
@@ -393,16 +387,14 @@
         public async Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<IDevice> devices)
         {
             var genericDevices = devices.Cast<Device<Parameters>>().Where(x => x.Parameters is LinkParameters).Cast<Device<LinkParameters>>();
-            var deviceInfoList = this.GetFirmwareUpdateInfo(genericDevices);
+            var deviceInfoList = GetFirmwareUpdateInfo(genericDevices);
 
             dynamic response = await this.MakeRequest(
-                                   "/app",
-                                   this.OtaUri,
-                                   new { deviceInfoList = deviceInfoList },
+                                   "v2/device/ota/query",
+                                   body: new { deviceInfoList = deviceInfoList },
                                    method: HttpMethod.Post);
 
-            int returnCode = response.rtnCode;
-            JToken token = response.upgradeInfoList;
+            JToken token = response.otaInfoList;
             return token.ToObject<List<UpgradeInfo>>() ?? new List<UpgradeInfo>();
         }
 
@@ -469,8 +461,8 @@
                 throw new ArgumentOutOfRangeException(nameof(this.region), "Region does not exist");
             }
 
-            JToken token = json;
-            var credentials = token["data"].ToObject<Credentials>() ?? new Credentials();
+            JToken token = json.data;
+            var credentials = token.ToObject<Credentials>() ?? new Credentials();
             this.apiKey = credentials.User?.Apikey;
             this.at = credentials.At;
             return credentials;
@@ -539,23 +531,26 @@
             }
 
             dynamic response = await this.MakeRequest(
-                                   $"/user/device/{deviceId}",
-                                   query: new
-                                              {
-                                                  deviceid = deviceId,
-                                                  appid = AppId,
-                                                  nonce = Utilities.Nonce,
-                                                  ts = Utilities.Timestamp,
-                                                  version = 8,
-                                              });
+                $"v2/device/thing",
+                body: new
+                {
+                    thingList = new[]
+                    {
+                        new
+                        {
+                            itemType = 2,
+                            id = deviceId,
+                        },
+                    },
+                }, method: HttpMethod.Post);
 
-            JToken token = response;
+            JToken token = response.data.thingList;
             if (token == null)
             {
                 throw new KeyNotFoundException("The device id was not found");
             }
 
-            device = token.ToObject<Device>();
+            device = token.ToObject<List<Thing>>()?.Select(x => x.ItemData).FirstOrDefault();
             if (device != null)
             {
                 return this.deviceCache.UpdateCache(device);
