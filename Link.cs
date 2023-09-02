@@ -19,11 +19,13 @@
     using Newtonsoft.Json.Linq;
     using ColorLightParameters = EWeLink.Api.Models.Parameters.ColorLightParameters;
 
-    public class Link : ILink
+    public class Link : ILink, ILinkAuthorization
     {
-        private const string AppId = "4s1FXKC9FaGfoqXhmXSJneb3qcm1gOak";//"YzfeftUVcZ6twZw1OoVKPRFYTrGEg01Q";
+        private const string AppIdValue = "4s1FXKC9FaGfoqXhmXSJneb3qcm1gOak";//"YzfeftUVcZ6twZw1OoVKPRFYTrGEg01Q";
 
         private const string AppSecret = "oKvCM06gvwkRbfetd6qWRrbC3rFrbIpV";//"4G91qSoboqYO4Y0XJ0LPPKIsq8reHdfa";
+
+        private readonly ILinkConfiguration configuration;
 
         private readonly IDeviceCache deviceCache;
 
@@ -45,8 +47,11 @@
 
         private string? apiKey;
 
+        private OAuhToken? auhToken;
+
         public Link(ILinkConfiguration configuration, IDeviceCache deviceCache, ILinkWebSocket linkWebSocket, ILinkLanControl lanControl, IHttpClientFactory httpClientFactory)
         {
+            this.configuration = configuration;
             this.deviceCache = deviceCache;
             this.linkWebSocket = linkWebSocket;
             this.lanControl = lanControl;
@@ -64,10 +69,15 @@
             this.email = configuration.Email;
             this.password = configuration.Password;
             this.at = configuration.At;
+            this.auhToken = configuration.AuhToken;
             this.apiKey = configuration.ApiKey;
         }
 
         public event Action<ILinkEvent<IEventParameters>>? LanParametersUpdated;
+
+        public event Action<OAuhToken>? OAuthTokenUpdated;
+
+        public static string AppId => AppIdValue;
 
         public Uri ApiUri => new Uri($"https://{this.region}-apia.coolkit.cc");
 
@@ -419,8 +429,6 @@
 
         public async Task<Credentials> GetCredentials()
         {
-            //var body = this.CredentialsPayload(email: this.email, phoneNumber: this.phoneNumber, password: this.password);
-
             var body = new
             {
                 password,
@@ -468,6 +476,101 @@
             return credentials;
         }
 
+        public (string Signature, long Seq) GetAuthorization()
+        {
+            var seq = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            var authorization = MakeAuthorizationSign($"{AppId}_{seq}");
+            return (authorization, seq);
+        }
+
+        public async Task<OAuhToken> GetAccessToken(string code, string redirectUri)
+        {
+            var body = new
+            {
+                code,
+                redirectUrl = redirectUri,
+                grantType = "authorization_code",
+            };
+
+            var uri = new Uri($"{this.ApiUri}v2/user/oauth/token");
+            var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
+            var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
+            httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
+
+            var httpClient = httpClientFactory.CreateClient();
+            var response = await httpClient.SendAsync(httpMessage);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<OAuhToken>(json)!;
+        }
+
+        public async Task ReloadAccessToken()
+        {
+            this.auhToken = this.configuration.AuhToken;
+            if (this.auhToken is null)
+            {
+                return;
+            }
+
+            await ValidateAuthToken();
+        }
+
+        private async Task ValidateAuthToken()
+        {
+            if (this.auhToken is null)
+            {
+                throw new ArgumentNullException(nameof(auhToken), "ValidateAuthToken called without a access token");
+            }
+
+            var accessExpiry = DateTimeOffset.FromUnixTimeMilliseconds(this.auhToken.AccessTokenExpiredTime);
+            if (accessExpiry - TimeSpan.FromDays(2) > DateTimeOffset.Now)
+            {
+                this.at = this.auhToken.AccessToken;
+                return;
+            }
+
+            var refreshExpiry = DateTimeOffset.FromUnixTimeMilliseconds(this.auhToken.RefreshTokenExpiredTime);
+            if (refreshExpiry < DateTimeOffset.Now)
+            {
+                throw new ArgumentOutOfRangeException(nameof(auhToken.RefreshToken), "Refresh Token expired");
+            }
+
+            var body = new { rt = auhToken.RefreshToken, };
+            var uri = new Uri($"{this.ApiUri}v2/user/refresh");
+            var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
+            var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
+            httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
+
+            var httpClient = httpClientFactory.CreateClient();
+            var response = await httpClient.SendAsync(httpMessage);
+            var refreshTime = DateTimeOffset.Now;
+            response.EnsureSuccessStatusCode();
+            var rawJson = await response.Content.ReadAsStringAsync();
+            var json = JsonConvert.DeserializeObject<dynamic>(rawJson)!;
+
+            string accessToken = json.at;
+            long accessTokenExpiredTime = refreshTime.AddDays(30).ToUnixTimeMilliseconds();
+            string refreshToken = json.rt;
+            long refreshTokenExpiredTime = refreshTime.AddDays(60).ToUnixTimeMilliseconds();
+
+            var authToken = new OAuhToken
+            {
+                AccessToken = accessToken, AccessTokenExpiredTime = accessTokenExpiredTime,
+                RefreshToken = refreshToken,
+                RefreshTokenExpiredTime = refreshTokenExpiredTime,
+            };
+            this.auhToken = authToken;
+            this.at = auhToken.AccessToken;
+            this.OAuthTokenUpdated?.Invoke(authToken);
+
+            // Get api key from the family
+            dynamic homeList = MakeRequest("v2/family", query: new { lang = "en" });
+            dynamic[] list = homeList.familyList;
+            string currentId = homeList.currentFamilyId;
+            dynamic item = list.First(x => x.id == currentId);
+            this.apiKey = item.apiKey;
+        }
+
         private async Task<dynamic> MakeRequest(string path, Uri? baseUri = null, object? body = null, object? query = null, HttpMethod? method = null)
         {
             if (method == null)
@@ -475,7 +578,12 @@
                 method = HttpMethod.Get;
             }
 
-            if (string.IsNullOrWhiteSpace(this.at))
+            if (this.auhToken != null)
+            {
+                await ValidateAuthToken();
+            }
+
+            if (string.IsNullOrWhiteSpace(this.at) && this.auhToken is null)
             {
                 await this.GetCredentials();
             }
@@ -523,7 +631,7 @@
             return json;
         }
 
-        private async Task<IDevice?> GetDevice(string deviceId, bool noCacheLoad)
+        public async Task<IDevice?> GetDevice(string deviceId, bool noCacheLoad)
         {
             if (!noCacheLoad && this.deviceCache.TryGetDevice(deviceId, out IDevice? device))
             {

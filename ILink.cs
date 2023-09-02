@@ -25,6 +25,8 @@ namespace EWeLink.Api
 
         Task<IDevice?> GetDevice(string deviceId);
 
+        Task<IDevice?> GetDevice(string deviceId, bool noCacheLoad);
+
         int GetDeviceChannelCountByUuid(int uuid);
 
         Task ToggleDevice(string deviceId, ChannelId channel = ChannelId.One);
@@ -50,5 +52,16 @@ namespace EWeLink.Api
         Task<string?> GetFirmwareVersion(string deviceId);
 
         Task<Credentials> GetCredentials();
+    }
+
+    public interface ILinkAuthorization
+    {
+        event Action<OAuhToken>? OAuthTokenUpdated;
+
+        (string Signature, long Seq) GetAuthorization();
+
+        Task<OAuhToken> GetAccessToken(string code, string redirectUri);
+
+        Task ReloadAccessToken();
     }
 }

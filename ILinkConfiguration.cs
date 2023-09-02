@@ -1,5 +1,8 @@
 namespace EWeLink.Api
 {
+    using System;
+    using EWeLink.Api.Models;
+
     public interface ILinkConfiguration
     {
         string? Email { get; }
@@ -13,5 +16,9 @@ namespace EWeLink.Api
         string? At { get; }
 
         string? ApiKey { get; }
+
+        OAuhToken? AuhToken { get; }
+
+        TimeSpan? DeviceCacheTimeout { get; }
     }
 }

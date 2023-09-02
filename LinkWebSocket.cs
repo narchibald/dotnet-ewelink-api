@@ -19,12 +19,14 @@ namespace EWeLink.Api
 
     public class LinkWebSocket : ILinkWebSocket
     {
+        private readonly Lazy<ILink> link;
         private readonly IDeviceCache deviceCache;
         private readonly ILogger<LinkWebSocket> logger;
         private ClientWebSocket? websocket;
 
-        public LinkWebSocket(IDeviceCache deviceCache, ILogger<LinkWebSocket> logger)
+        public LinkWebSocket(Lazy<ILink> link, IDeviceCache deviceCache, ILogger<LinkWebSocket> logger)
         {
+            this.link = link;
             this.deviceCache = deviceCache;
             this.logger = logger;
         }
@@ -77,7 +79,7 @@ namespace EWeLink.Api
                     this.logger.LogInformation("Web socket closed. status:{CloseStatus}, description: {CloseStatusDescription}", socketReceiveResult.CloseStatus, socketReceiveResult.CloseStatusDescription);
                     return new LinkWebSocketReceiveResult(socketReceiveResult);
                 case WebSocketMessageType.Text:
-                    var linkEvent = DeserializeEvent(buffer.ToArray(), socketReceiveResult.Count);
+                    var linkEvent = await DeserializeEvent(buffer.ToArray(), socketReceiveResult.Count);
                     if (linkEvent != null)
                     {
                         return new LinkWebSocketReceiveResult(socketReceiveResult, linkEvent);
@@ -90,16 +92,19 @@ namespace EWeLink.Api
             }
         }
 
-        private ILinkEvent<IEventParameters>? DeserializeEvent(byte[] buffer, int count)
+        private async Task<ILinkEvent<IEventParameters>?> DeserializeEvent(byte[] buffer, int count)
         {
             var text = Encoding.UTF8.GetString(buffer, 0, count);
 
             this.logger.LogDebug("Received event: {Text}", text);
             var jsonObject = JObject.Parse(text);
-            jsonObject.Add("eventSource", new JValue(EventSource.Cloud));
-            var deviceId = jsonObject.Value<string>("deviceid");
+            dynamic json = jsonObject;
 
-            var deviceUiid = jsonObject.Value<int?>("uiid");
+            jsonObject.Add("eventSource", new JValue(EventSource.Cloud));
+            string deviceId = json.deviceid;
+            EventAction action = json.action;
+
+            int? deviceUiid = json.uiid;
             if (!deviceUiid.HasValue)
             {
                 deviceUiid = this.deviceCache.GetDevicesUiid(deviceId ?? string.Empty);
@@ -110,30 +115,37 @@ namespace EWeLink.Api
             }
 
             Type deviceType = deviceUiid.HasValue ? this.deviceCache.GetEventParameterTypeForUiid(deviceUiid.Value) ?? typeof(EventParameters) : typeof(EventParameters);
-            var jsonObjectParams = (JObject?)jsonObject.GetValue("params");
+            JObject? jsonObjectParams = json.@params;
             if (jsonObjectParams != null)
             {
-                var device = this.deviceCache.GetDevice(deviceId ?? string.Empty);
-                if (device is IDevice<Parameters> typedDevice)
+                if (action == EventAction.Update)
                 {
-                    var updateResult = typedDevice.Parameters.Update(jsonObjectParams.ToString());
-                    if (typeof(IMultiSwitchEventParameters).IsAssignableFrom(deviceType) && updateResult.HasValue)
+                    var device = await this.link.Value.GetDevice(deviceId ?? string.Empty);
+                    if (device is IDevice<Parameters> typedDevice)
                     {
-                        jsonObjectParams.Add("triggeredOutlet", updateResult.Value);
+                        var updateResult = typedDevice.Parameters.Update(jsonObjectParams.ToString());
+                        if (typeof(IMultiSwitchEventParameters).IsAssignableFrom(deviceType) && updateResult.HasValue)
+                        {
+                            jsonObjectParams.Add("triggeredOutlet", updateResult.Value);
+                        }
+                    }
+
+                    if (typeof(SnZbEventParameters).IsAssignableFrom(deviceType))
+                    {
+                        if (jsonObjectParams.Count == 2 && new[] { "battery", "trigTime" }.All(jsonObjectParams.ContainsKey))
+                        {
+                            deviceType = typeof(SnZbBatteryEventParameter);
+                        }
+                    }
+
+                    if (jsonObject.TryGetValue("proxyMsgTime", out var jvalue))
+                    {
+                        jsonObjectParams.Add("trigTime", jvalue);
                     }
                 }
-
-                if (typeof(SnZbEventParameters).IsAssignableFrom(deviceType))
+                else if (action == EventAction.SystemMessage)
                 {
-                    if (jsonObjectParams.Count == 2 && new[] { "battery", "trigTime" }.All(jsonObjectParams.ContainsKey))
-                    {
-                        deviceType = typeof(SnZbBatteryEventParameter);
-                    }
-                }
-
-                if (jsonObject.TryGetValue("proxyMsgTime", out var jvalue))
-                {
-                    jsonObjectParams.Add("trigTime", jvalue);
+                    deviceType = typeof(OnlineEventParameters);
                 }
 
                 if (typeof(EventParameters).IsAssignableFrom(deviceType))

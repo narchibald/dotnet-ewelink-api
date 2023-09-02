@@ -1,13 +1,11 @@
 namespace EWeLink.Api.Models.EventParameters
 {
     public interface ITwoSwitchEventParameters
-        : IEventParameters
+        : IMultiSwitchEventParameters
     {
         LinkSwitch One { get; }
 
         LinkSwitch Two { get; }
-
-         int TriggeredOutlet { get; set; }
     }
 
     [EventDeviceIdentifier(7)]
