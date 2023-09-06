@@ -58,10 +58,8 @@ namespace EWeLink.Api
     {
         event Action<OAuhToken>? OAuthTokenUpdated;
 
-        (string Signature, long Seq) GetAuthorization();
+        (string Signature, long Seq, string AppId) GetAuthorization();
 
         Task<OAuhToken> GetAccessToken(string code, string redirectUri);
-
-        Task ReloadAccessToken();
     }
 }

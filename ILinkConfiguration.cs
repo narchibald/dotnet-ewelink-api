@@ -19,6 +19,10 @@ namespace EWeLink.Api
 
         OAuhToken? AuhToken { get; }
 
+        string? AppId { get; }
+        
+        string? AppSecret { get; }
+
         TimeSpan? DeviceCacheTimeout { get; }
     }
 }

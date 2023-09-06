@@ -7,7 +7,7 @@
     {
         LinkSwitch[] Switches { get; set; }
 
-        int TriggeredOutlet { get; set; }
+        int? TriggeredOutlet { get; set; }
     }
 
     public class MultiSwitchEventParameters
@@ -15,6 +15,6 @@
     {
         public LinkSwitch[] Switches { get; set; } = Array.Empty<LinkSwitch>();
 
-        public int TriggeredOutlet { get; set; }
+        public int? TriggeredOutlet { get; set; }
     }
 }

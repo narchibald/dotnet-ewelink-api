@@ -21,9 +21,9 @@
 
     public class Link : ILink, ILinkAuthorization
     {
-        private const string AppIdValue = "4s1FXKC9FaGfoqXhmXSJneb3qcm1gOak";//"YzfeftUVcZ6twZw1OoVKPRFYTrGEg01Q";
+        private const string DefaultAppId = "4s1FXKC9FaGfoqXhmXSJneb3qcm1gOak";
 
-        private const string AppSecret = "oKvCM06gvwkRbfetd6qWRrbC3rFrbIpV";//"4G91qSoboqYO4Y0XJ0LPPKIsq8reHdfa";
+        private const string DefaultAppSecret = "oKvCM06gvwkRbfetd6qWRrbC3rFrbIpV";
 
         private readonly ILinkConfiguration configuration;
 
@@ -47,8 +47,6 @@
 
         private string? apiKey;
 
-        private OAuhToken? auhToken;
-
         public Link(ILinkConfiguration configuration, IDeviceCache deviceCache, ILinkWebSocket linkWebSocket, ILinkLanControl lanControl, IHttpClientFactory httpClientFactory)
         {
             this.configuration = configuration;
@@ -59,7 +57,7 @@
             this.lanControl.ParametersUpdated += e => LanParametersUpdated?.Invoke(e);
             var check = this.CheckLoginParameters(configuration.Email, configuration.PhoneNumber, configuration.Password, configuration.At);
 
-            if (!check)
+            if (!check && this.AuhToken is null)
             {
                 throw new Exception("invalidCredentials");
             }
@@ -69,7 +67,6 @@
             this.email = configuration.Email;
             this.password = configuration.Password;
             this.at = configuration.At;
-            this.auhToken = configuration.AuhToken;
             this.apiKey = configuration.ApiKey;
         }
 
@@ -77,13 +74,17 @@
 
         public event Action<OAuhToken>? OAuthTokenUpdated;
 
-        public static string AppId => AppIdValue;
-
         public Uri ApiUri => new Uri($"https://{this.region}-apia.coolkit.cc");
 
         public Uri OtaUri => new Uri($"https://{this.region}-ota.coolkit.cc:8080/otaother");
 
         public Uri ApiWebSocketUri => new Uri($"wss://{this.region}-pconnect3.coolkit.cc:8080/api/ws");
+
+        private string AppId => this.configuration.AppId ?? DefaultAppId;
+
+        private string AppSecret => this.configuration.AppSecret ?? DefaultAppSecret;
+
+        private OAuhToken? AuhToken => this.configuration.AuhToken;
 
         public async Task<SensorData?> GetDeviceCurrentSensorData(string deviceId)
         {
@@ -144,7 +145,7 @@
         public async Task<int> GetDeviceChannelCount(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
-            if (device.Extra is null)
+            if (device?.Extra is null)
             {
                 throw new ArgumentNullException(nameof(device.Extra));
             }
@@ -176,7 +177,6 @@
                 throw new Exception(NiceError.Custom[CustomErrors.Ch404]);
             }
 
-            var switches = new LinkSwitch[switchesAmount];
             SwitchState status;
             switch (device)
             {
@@ -191,7 +191,6 @@
                             ChannelId.Two => twoSwitch.Parameters.Two.Switch,
                             _ => throw new ArgumentOutOfRangeException(nameof(channel))
                         };
-                        switches = twoSwitch.Parameters.Switches;
                     }
 
                     break;
@@ -204,7 +203,6 @@
                             ChannelId.Three => threeSwitchDevice.Parameters.Three.Switch,
                             _ => throw new ArgumentOutOfRangeException(nameof(channel))
                         };
-                        switches = threeSwitchDevice.Parameters.Switches;
                     }
 
                     break;
@@ -219,7 +217,6 @@
                             ChannelId.Four => fourSwitchDevice.Parameters.Four.Switch,
                             _ => throw new ArgumentOutOfRangeException(nameof(channel))
                         };
-                        switches = fourSwitchDevice.Parameters.Switches;
                     }
 
                     break;
@@ -241,7 +238,7 @@
             if (parameters is MultiSwitchParameters multiSwitchParameters)
             {
                 var linkSwitch = multiSwitchParameters.Switches.First(x => x.Outlet == (int)channel);
-                linkSwitch!.Switch = stateToSwitch;
+                linkSwitch.Switch = stateToSwitch;
 
                 // Reduce the switches to only include the channel we want changed
                 multiSwitchParameters.Switches = new[] { linkSwitch };
@@ -264,26 +261,17 @@
                 }
             }
 
-            dynamic response = await this.MakeRequest(
-                                   "v2/device/thing/status",
-                                   body: new
-                                             {
-                                                 type = 1,
-                                                 id = deviceId,
-                                                 @params = parameters,
-                                             },
-                                   method: HttpMethod.Post);
+            await this.MakeRequest(
+                "v2/device/thing/status",
+                body: new
+                {
+                    type = 1,
+                    id = deviceId,
+                    @params = parameters,
+                },
+                method: HttpMethod.Post);
 
-            int? responseError = response.error;
-
-            if (responseError > 0)
-            {
-                throw new Exception(NiceError.Errors[responseError.Value]);
-            }
-            else
-            {
-                deviceParameters.Update(parameters);
-            }
+            deviceParameters.Update(parameters);
         }
 
         public async Task SetLightColor(string deviceId, LightBrightness value)
@@ -312,7 +300,7 @@
                 deviceParameters.White = whiteValue;
             }
 
-            dynamic response = await this.MakeRequest(
+            await this.MakeRequest(
                 "v2/device/thing/status",
                 body: new
                 {
@@ -322,16 +310,7 @@
                 },
                 method: HttpMethod.Post);
 
-            int? responseError = response.error;
-
-            if (responseError > 0)
-            {
-                throw new Exception(NiceError.Errors[responseError.Value]);
-            }
-            else
-            {
-                colorLight.Parameters.Update(deviceParameters);
-            }
+            colorLight.Parameters.Update(deviceParameters);
         }
 
         public async Task<ILinkWebSocket> OpenWebSocket(CancellationToken cancellationToken = default)
@@ -339,7 +318,7 @@
             var wssLoginPayload = JsonConvert.SerializeObject(new
             {
                 action = "userOnline",
-                at = this.at,
+                this.at,
                 apikey = this.apiKey,
                 appid = AppId,
                 nonce = Utilities.Nonce,
@@ -361,26 +340,21 @@
         public async Task<List<IDevice>> GetDevices()
         {
             dynamic response = await this.MakeRequest(
-                                   "v2/device/thing",
-                                   query: new
-                                              {
-                                                  lang = "en",
-                                                  num = 0,
-                                              });
+                "v2/device/thing",
+                query: new
+                {
+                    lang = "en",
+                    num = 0,
+                });
 
-            JToken jtoken = response.data.thingList;
-            if (jtoken == null)
+            JToken thingList = response.thingList;
+            var deviceList = thingList.ToObject<List<Thing>>()?.Select(x => x.ItemData).ToList();
+            if (deviceList != null)
             {
-                throw new HttpRequestException(NiceError.Custom[CustomErrors.NoDevices]);
+                this.deviceCache.UpdateCache(deviceList);
             }
 
-            var devicelist = jtoken.ToObject<List<Thing>>()?.Select(x => x.ItemData).ToList();
-            if (devicelist != null)
-            {
-                this.deviceCache.UpdateCache(devicelist);
-            }
-
-            return devicelist ?? new List<IDevice>();
+            return deviceList ?? new List<IDevice>();
         }
 
         public async Task<List<UpdateCheckResult>> CheckAllDeviceUpdates()
@@ -388,7 +362,10 @@
             var devices = await this.GetDevices();
             var result = await this.CheckDeviceUpdates(devices);
 
-            var genericDevices = devices.Cast<Device<Parameters>>().Where(x => x.Parameters is LinkParameters).Cast<Device<LinkParameters>>().ToDictionary(x => x.DeviceId);
+            var genericDevices = devices.Cast<Device<Parameters>>()
+                .Where(x => x.Parameters is LinkParameters)
+                .Cast<Device<LinkParameters>>()
+                .ToDictionary(x => x.DeviceId);
 
             return result.Select(r => new UpdateCheckResult(r.Version != genericDevices[r.DeviceId].Parameters.FirmWareVersion, r))
                 .ToList();
@@ -396,13 +373,15 @@
 
         public async Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<IDevice> devices)
         {
-            var genericDevices = devices.Cast<Device<Parameters>>().Where(x => x.Parameters is LinkParameters).Cast<Device<LinkParameters>>();
+            var genericDevices = devices.Cast<Device<Parameters>>()
+                .Where(x => x.Parameters is LinkParameters)
+                .Cast<Device<LinkParameters>>();
             var deviceInfoList = GetFirmwareUpdateInfo(genericDevices);
 
             dynamic response = await this.MakeRequest(
-                                   "v2/device/ota/query",
-                                   body: new { deviceInfoList = deviceInfoList },
-                                   method: HttpMethod.Post);
+                "v2/device/ota/query",
+                body: new { deviceInfoList = deviceInfoList },
+                method: HttpMethod.Post);
 
             JToken token = response.otaInfoList;
             return token.ToObject<List<UpgradeInfo>>() ?? new List<UpgradeInfo>();
@@ -448,39 +427,20 @@
 
             response.EnsureSuccessStatusCode();
             var jsonString = await response.Content.ReadAsStringAsync();
-            dynamic json = JsonConvert.DeserializeObject<dynamic>(jsonString);
+            dynamic json = JsonConvert.DeserializeObject<dynamic>(jsonString) !;
 
-            int? errorValue = json.error;
-            string region = json.region;
-
-            if (errorValue.HasValue && new[] { 400, 401, 404 }.Contains(errorValue.Value))
-            {
-                throw new HttpRequestException(NiceError.Errors[406]);
-            }
-
-            if (errorValue == 301 && region != null)
-            {
-                if (this.region != region)
-                {
-                    this.region = region;
-                    return await this.GetCredentials();
-                }
-
-                throw new ArgumentOutOfRangeException(nameof(this.region), "Region does not exist");
-            }
-
-            JToken token = json.data;
+            JToken token = GetResponseData(json);
             var credentials = token.ToObject<Credentials>() ?? new Credentials();
             this.apiKey = credentials.User?.Apikey;
             this.at = credentials.At;
             return credentials;
         }
 
-        public (string Signature, long Seq) GetAuthorization()
+        public (string Signature, long Seq, string AppId) GetAuthorization()
         {
             var seq = DateTimeOffset.Now.ToUnixTimeMilliseconds();
             var authorization = MakeAuthorizationSign($"{AppId}_{seq}");
-            return (authorization, seq);
+            return (authorization, seq, AppId);
         }
 
         public async Task<OAuhToken> GetAccessToken(string code, string redirectUri)
@@ -494,20 +454,23 @@
 
             var uri = new Uri($"{this.ApiUri}v2/user/oauth/token");
             var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
+            httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(JsonConvert.SerializeObject(body))}");
+            httpMessage.Headers.Add("X-CK-Appid", AppId);
             var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
             httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
 
             var httpClient = httpClientFactory.CreateClient();
             var response = await httpClient.SendAsync(httpMessage);
             response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync();
-            return JsonConvert.DeserializeObject<OAuhToken>(json)!;
+            var responseData = await response.Content.ReadAsStringAsync();
+            dynamic json = JsonConvert.DeserializeObject(responseData) !;
+            JToken tokenData = GetResponseData(json);
+            return tokenData.ToObject<OAuhToken>() !;
         }
 
         public async Task ReloadAccessToken()
         {
-            this.auhToken = this.configuration.AuhToken;
-            if (this.auhToken is null)
+            if (this.AuhToken is null)
             {
                 return;
             }
@@ -515,60 +478,129 @@
             await ValidateAuthToken();
         }
 
+        public async Task<IDevice?> GetDevice(string deviceId, bool noCacheLoad)
+        {
+            if (!noCacheLoad && this.deviceCache.TryGetDevice(deviceId, out IDevice? device))
+            {
+                return device!;
+            }
+
+            dynamic response = await this.MakeRequest(
+                $"v2/device/thing",
+                body: new
+                {
+                    thingList = new[]
+                    {
+                        new
+                        {
+                            itemType = 2,
+                            id = deviceId,
+                        },
+                    },
+                }, method: HttpMethod.Post);
+
+            JToken token = response.thingList;
+            if (token == null)
+            {
+                throw new KeyNotFoundException("The device id was not found");
+            }
+
+            device = token.ToObject<List<Thing>>()?.Select(x => x.ItemData).FirstOrDefault();
+            if (device != null)
+            {
+                return this.deviceCache.UpdateCache(device);
+            }
+
+            return device;
+        }
+
         private async Task ValidateAuthToken()
         {
-            if (this.auhToken is null)
+            var auhToken = this.AuhToken;
+            if (auhToken is null)
             {
                 throw new ArgumentNullException(nameof(auhToken), "ValidateAuthToken called without a access token");
             }
 
-            var accessExpiry = DateTimeOffset.FromUnixTimeMilliseconds(this.auhToken.AccessTokenExpiredTime);
+            var accessExpiry = DateTimeOffset.FromUnixTimeMilliseconds(auhToken.AccessTokenExpiredTime);
             if (accessExpiry - TimeSpan.FromDays(2) > DateTimeOffset.Now)
             {
-                this.at = this.auhToken.AccessToken;
-                return;
+                if (this.at != auhToken.AccessToken)
+                {
+                    this.at = auhToken.AccessToken;
+                    this.apiKey = null;
+                }
+            }
+            else
+            {
+                var refreshExpiry = DateTimeOffset.FromUnixTimeMilliseconds(auhToken.RefreshTokenExpiredTime);
+                if (refreshExpiry < DateTimeOffset.Now)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(auhToken.RefreshToken), "Refresh Token expired");
+                }
+
+                var body = new { rt = auhToken.RefreshToken, };
+                var uri = new Uri($"{this.ApiUri}v2/user/refresh");
+                var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
+                httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(JsonConvert.SerializeObject(body))}");
+                httpMessage.Headers.Add("X-CK-Appid", AppId);
+                var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
+                httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
+
+                var httpClient = httpClientFactory.CreateClient();
+                var response = await httpClient.SendAsync(httpMessage);
+                var refreshTime = DateTimeOffset.Now;
+                response.EnsureSuccessStatusCode();
+                var rawJson = await response.Content.ReadAsStringAsync();
+                var json = JsonConvert.DeserializeObject<dynamic>(rawJson) !;
+                var refreshTokenData = GetResponseData(json);
+                string accessToken = refreshTokenData.at;
+                long accessTokenExpiredTime = refreshTime.AddDays(30).ToUnixTimeMilliseconds();
+                string refreshToken = refreshTokenData.rt;
+                long refreshTokenExpiredTime = refreshTime.AddDays(60).ToUnixTimeMilliseconds();
+
+                var authToken = new OAuhToken
+                {
+                    AccessToken = accessToken, AccessTokenExpiredTime = accessTokenExpiredTime,
+                    RefreshToken = refreshToken,
+                    RefreshTokenExpiredTime = refreshTokenExpiredTime,
+                };
+                auhToken = authToken;
+                this.at = auhToken.AccessToken;
+                this.apiKey = null;
+                this.OAuthTokenUpdated?.Invoke(authToken);
             }
 
-            var refreshExpiry = DateTimeOffset.FromUnixTimeMilliseconds(this.auhToken.RefreshTokenExpiredTime);
-            if (refreshExpiry < DateTimeOffset.Now)
+            if (this.apiKey is null)
             {
-                throw new ArgumentOutOfRangeException(nameof(auhToken.RefreshToken), "Refresh Token expired");
+                await LoadApiKey();
             }
+        }
 
-            var body = new { rt = auhToken.RefreshToken, };
-            var uri = new Uri($"{this.ApiUri}v2/user/refresh");
-            var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
-            var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
-            httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
-
-            var httpClient = httpClientFactory.CreateClient();
-            var response = await httpClient.SendAsync(httpMessage);
-            var refreshTime = DateTimeOffset.Now;
-            response.EnsureSuccessStatusCode();
-            var rawJson = await response.Content.ReadAsStringAsync();
-            var json = JsonConvert.DeserializeObject<dynamic>(rawJson)!;
-
-            string accessToken = json.at;
-            long accessTokenExpiredTime = refreshTime.AddDays(30).ToUnixTimeMilliseconds();
-            string refreshToken = json.rt;
-            long refreshTokenExpiredTime = refreshTime.AddDays(60).ToUnixTimeMilliseconds();
-
-            var authToken = new OAuhToken
-            {
-                AccessToken = accessToken, AccessTokenExpiredTime = accessTokenExpiredTime,
-                RefreshToken = refreshToken,
-                RefreshTokenExpiredTime = refreshTokenExpiredTime,
-            };
-            this.auhToken = authToken;
-            this.at = auhToken.AccessToken;
-            this.OAuthTokenUpdated?.Invoke(authToken);
-
+        private async Task LoadApiKey()
+        {
             // Get api key from the family
-            dynamic homeList = MakeRequest("v2/family", query: new { lang = "en" });
-            dynamic[] list = homeList.familyList;
+            var uriBuilder = new UriBuilder($"{this.ApiUri}v2/family")
+            {
+                Query = this.ToQueryString(new { lang = "en" }),
+            };
+
+            var uri = uriBuilder.Uri;
+            var httpMessage = new HttpRequestMessage(HttpMethod.Get, uri);
+            httpMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", this.at);
+            httpMessage.Headers.Add("X-CK-Appid", AppId);
+            var homeList = await SendHttpMessage(httpMessage);
             string currentId = homeList.currentFamilyId;
-            dynamic item = list.First(x => x.id == currentId);
-            this.apiKey = item.apiKey;
+            int count = homeList.familyList.Count;
+            for (var i = 0; i < count && this.apiKey is null; i++)
+            {
+                dynamic home = homeList.familyList[i];
+                string id = home.id;
+                if (id == currentId)
+                {
+                    this.apiKey = home.apikey;
+                }
+            }
         }
 
         private async Task<dynamic> MakeRequest(string path, Uri? baseUri = null, object? body = null, object? query = null, HttpMethod? method = null)
@@ -578,12 +610,12 @@
                 method = HttpMethod.Get;
             }
 
-            if (this.auhToken != null)
+            if (this.AuhToken != null)
             {
                 await ValidateAuthToken();
             }
 
-            if (string.IsNullOrWhiteSpace(this.at) && this.auhToken is null)
+            if (string.IsNullOrWhiteSpace(this.at) && this.AuhToken is null)
             {
                 await this.GetCredentials();
             }
@@ -609,62 +641,18 @@
                 httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
             }
 
+            return await SendHttpMessage(httpMessage);
+        }
+
+        private async Task<dynamic> SendHttpMessage(HttpRequestMessage httpMessage)
+        {
             var httpClient = this.httpClientFactory.CreateClient();
             var response = await httpClient.SendAsync(httpMessage);
 
             response.EnsureSuccessStatusCode();
             var jsonString = await response.Content.ReadAsStringAsync();
-            dynamic json = JsonConvert.DeserializeObject(jsonString);
-
-            int? error = json.error;
-
-            if (error > 0)
-            {
-                if (error == 406)
-                {
-                    this.at = null;
-                }
-
-                throw new HttpRequestException(NiceError.Errors[error.Value]);
-            }
-
-            return json;
-        }
-
-        public async Task<IDevice?> GetDevice(string deviceId, bool noCacheLoad)
-        {
-            if (!noCacheLoad && this.deviceCache.TryGetDevice(deviceId, out IDevice? device))
-            {
-                return device!;
-            }
-
-            dynamic response = await this.MakeRequest(
-                $"v2/device/thing",
-                body: new
-                {
-                    thingList = new[]
-                    {
-                        new
-                        {
-                            itemType = 2,
-                            id = deviceId,
-                        },
-                    },
-                }, method: HttpMethod.Post);
-
-            JToken token = response.data.thingList;
-            if (token == null)
-            {
-                throw new KeyNotFoundException("The device id was not found");
-            }
-
-            device = token.ToObject<List<Thing>>()?.Select(x => x.ItemData).FirstOrDefault();
-            if (device != null)
-            {
-                return this.deviceCache.UpdateCache(device);
-            }
-
-            return device;
+            dynamic json = JsonConvert.DeserializeObject(jsonString) !;
+            return GetResponseData(json);
         }
 
         private bool CheckLoginParameters(
@@ -688,6 +676,11 @@
 
         private string ToQueryString(object? qs)
         {
+            if (qs is null)
+            {
+                return string.Empty;
+            }
+
             var properties = from p in qs.GetType().GetProperties()
                 where p.GetValue(qs, null) != null
                 select p.Name + "=" + System.Web.HttpUtility.UrlEncode(p.GetValue(qs, null).ToString());
@@ -697,30 +690,10 @@
 
         private string MakeAuthorizationSign(string data)
         {
-            var crypto = HMACSHA256.Create("HmacSHA256");
+            var crypto = HMAC.Create("HmacSHA256");
             crypto.Key = Encoding.UTF8.GetBytes(AppSecret);
             var hash = crypto.ComputeHash(Encoding.UTF8.GetBytes(data));
             return Convert.ToBase64String(hash);
-        }
-
-        private string MakeAuthorizationSign(PayLoad? body)
-        {
-            var crypto = HMACSHA256.Create("HmacSHA256");
-            crypto.Key = Encoding.UTF8.GetBytes(AppSecret);
-            var hash = crypto.ComputeHash(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(body)));
-            return Convert.ToBase64String(hash);
-        }
-
-        private PayLoad CredentialsPayload(string? email, string? phoneNumber, string? password)
-        {
-            return new PayLoad(
-                AppId,
-                email,
-                phoneNumber,
-                password,
-                Utilities.Timestamp,
-                8,
-                Utilities.Nonce);
         }
 
         private string GetDeviceTypeByUiid(int uiid)
@@ -731,6 +704,18 @@
             }
 
             return string.Empty;
+        }
+
+        private dynamic GetResponseData(dynamic json)
+        {
+            int error = json.error;
+            if (error != 0)
+            {
+                string message = json.msg;
+                throw new HttpRequestException($"{error}: {message}");
+            }
+
+            return json.data;
         }
 
         private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device<LinkParameters>> devices)

@@ -8,6 +8,9 @@ namespace EWeLink.Api.Models.Parameters
         [JsonIgnore]
         public LinkSwitch Three => Switches[2];
 
+        [JsonIgnore]
+        protected override int SwitchCount => 3;
+
         public override Parameters CreateParameters()
         {
             var parameters = new ThreeSwitchParameters

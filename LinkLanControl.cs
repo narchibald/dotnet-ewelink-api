@@ -244,7 +244,11 @@
                 Type deviceType = this.deviceCache.GetEventParameterTypeForUiid(deviceUiid) ?? typeof(EventParameters);
                 if (device is IDevice<Parameters> typedDevice)
                 {
-                    typedDevice.Parameters.Update(json);
+                    var updateResult = typedDevice.Parameters.Update(json);
+                    if (typeof(IMultiSwitchEventParameters).IsAssignableFrom(deviceType) && updateResult.HasValue)
+                    {
+                        parametersJsonObject.Add("triggeredOutlet", updateResult.Value);
+                    }
                 }
 
                 if (hasPreviousSeq && this.ParametersUpdated != null)
