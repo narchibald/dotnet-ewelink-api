@@ -55,13 +55,6 @@
             this.lanControl = lanControl;
             this.httpClientFactory = httpClientFactory;
             this.lanControl.ParametersUpdated += e => LanParametersUpdated?.Invoke(e);
-            var check = this.CheckLoginParameters(configuration.Email, configuration.PhoneNumber, configuration.Password, configuration.At);
-
-            if (!check && this.AuhToken is null)
-            {
-                throw new Exception("invalidCredentials");
-            }
-
             this.region = configuration.Region;
             this.phoneNumber = configuration.PhoneNumber;
             this.email = configuration.Email;
