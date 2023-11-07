@@ -98,13 +98,13 @@ namespace EWeLink.Api
 
             this.logger.LogDebug("Received event: {Text}", text);
             var jsonObject = JObject.Parse(text);
-            dynamic json = jsonObject;
+            var eventData = jsonObject.ToObject<EventData>();
 
             jsonObject.Add("eventSource", new JValue(EventSource.Cloud));
-            string deviceId = json.deviceid;
-            EventAction action = json.action;
+            string deviceId = eventData.Deviceid;
+            EventAction action = eventData.Action;
 
-            int? deviceUiid = json.uiid;
+            int? deviceUiid = eventData.Uiid;
             if (!deviceUiid.HasValue)
             {
                 deviceUiid = this.deviceCache.GetDevicesUiid(deviceId ?? string.Empty);
@@ -115,7 +115,7 @@ namespace EWeLink.Api
             }
 
             Type deviceType = deviceUiid.HasValue ? this.deviceCache.GetEventParameterTypeForUiid(deviceUiid.Value) ?? typeof(EventParameters) : typeof(EventParameters);
-            JObject? jsonObjectParams = json.@params;
+            JObject? jsonObjectParams = eventData.Params;
             if (jsonObjectParams != null)
             {
                 if (action == EventAction.Update)
@@ -160,6 +160,21 @@ namespace EWeLink.Api
             var eventType = typeof(LinkEvent<>).MakeGenericType(deviceType);
             var linkEvent = jsonObject.ToObject(eventType) as ILinkEvent<IEventParameters>;
             return linkEvent;
+        }
+
+        public class EventData
+        {
+            [JsonProperty("action")]
+            public EventAction Action { get; set; }
+
+            [JsonProperty("deviceid")]
+            public string Deviceid { get; set; }
+
+            [JsonProperty("uiid")]
+            public int? Uiid { get; set; }
+
+            [JsonProperty("params")]
+            public JObject? Params { get; set; }
         }
     }
 }

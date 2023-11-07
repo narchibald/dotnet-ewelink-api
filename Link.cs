@@ -1,6 +1,7 @@
 ﻿namespace EWeLink.Api
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net.Http;
@@ -21,9 +22,17 @@
 
     public class Link : ILink, ILinkAuthorization
     {
+        private const int MaxCallCount = 300;
+
         private const string DefaultAppId = "4s1FXKC9FaGfoqXhmXSJneb3qcm1gOak";
 
         private const string DefaultAppSecret = "oKvCM06gvwkRbfetd6qWRrbC3rFrbIpV";
+
+        private static readonly ConcurrentDictionary<string, string> TokenToApiCache = new ConcurrentDictionary<string, string>();
+
+        private static readonly TimeSpan MaxCallCountOverTimePeriod = TimeSpan.FromMinutes(5);
+
+        private static readonly TimeSpan DelayBetweenRequests = TimeSpan.FromMilliseconds(500);
 
         private readonly ILinkConfiguration configuration;
 
@@ -34,6 +43,16 @@
         private readonly ILinkLanControl lanControl;
 
         private readonly IHttpClientFactory httpClientFactory;
+
+        private readonly Semaphore requestLock;
+
+        private readonly Semaphore tokenLock;
+
+        private DateTimeOffset? lastRequestTime;
+
+        private int callCountForPeriod = 0;
+
+        private DateTimeOffset? callCountPeriodStart;
 
         private string? region = "us";
 
@@ -55,6 +74,8 @@
             this.lanControl = lanControl;
             this.httpClientFactory = httpClientFactory;
             this.lanControl.ParametersUpdated += e => LanParametersUpdated?.Invoke(e);
+            this.requestLock = new Semaphore(1, 1, configuration.AppId);
+            this.tokenLock = new Semaphore(1, 1, $"{configuration.AppId}_token");
             this.region = configuration.Region;
             this.phoneNumber = configuration.PhoneNumber;
             this.email = configuration.Email;
@@ -509,64 +530,77 @@
 
         private async Task ValidateAuthToken()
         {
-            var auhToken = this.AuhToken;
-            if (auhToken is null)
+            tokenLock.WaitOne();
+            try
             {
-                throw new ArgumentNullException(nameof(auhToken), "ValidateAuthToken called without a access token");
-            }
-
-            var accessExpiry = DateTimeOffset.FromUnixTimeMilliseconds(auhToken.AccessTokenExpiredTime);
-            if (accessExpiry - TimeSpan.FromDays(2) > DateTimeOffset.Now)
-            {
-                if (this.at != auhToken.AccessToken)
+                var auhToken = this.AuhToken;
+                if (auhToken is null)
                 {
+                    throw new ArgumentNullException(nameof(auhToken), "ValidateAuthToken called without a access token");
+                }
+
+                var accessExpiry = DateTimeOffset.FromUnixTimeMilliseconds(auhToken.AccessTokenExpiredTime);
+                if (accessExpiry - TimeSpan.FromDays(2) > DateTimeOffset.Now)
+                {
+                    if (this.at != auhToken.AccessToken)
+                    {
+                        this.at = auhToken.AccessToken;
+                        this.apiKey = null;
+                        if (TokenToApiCache.TryGetValue(this.at, out var key))
+                        {
+                            this.apiKey = key;
+                        }
+                    }
+                }
+                else
+                {
+                    var refreshExpiry = DateTimeOffset.FromUnixTimeMilliseconds(auhToken.RefreshTokenExpiredTime);
+                    if (refreshExpiry < DateTimeOffset.Now)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(auhToken.RefreshToken), "Refresh Token expired");
+                    }
+
+                    TokenToApiCache.TryRemove(auhToken.AccessToken, out _);
+                    var body = new { rt = auhToken.RefreshToken, };
+                    var uri = new Uri($"{this.ApiUri}v2/user/refresh");
+                    var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
+                    httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(JsonConvert.SerializeObject(body))}");
+                    httpMessage.Headers.Add("X-CK-Appid", AppId);
+                    var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
+                    httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
+
+                    var httpClient = httpClientFactory.CreateClient();
+                    var response = await httpClient.SendAsync(httpMessage);
+                    var refreshTime = DateTimeOffset.Now;
+                    response.EnsureSuccessStatusCode();
+                    var rawJson = await response.Content.ReadAsStringAsync();
+                    var json = JsonConvert.DeserializeObject<dynamic>(rawJson) !;
+                    var refreshTokenData = GetResponseData(json);
+                    string accessToken = refreshTokenData.at;
+                    long accessTokenExpiredTime = refreshTime.AddDays(30).ToUnixTimeMilliseconds();
+                    string refreshToken = refreshTokenData.rt;
+                    long refreshTokenExpiredTime = refreshTime.AddDays(60).ToUnixTimeMilliseconds();
+
+                    var authToken = new OAuhToken
+                    {
+                        AccessToken = accessToken, AccessTokenExpiredTime = accessTokenExpiredTime,
+                        RefreshToken = refreshToken,
+                        RefreshTokenExpiredTime = refreshTokenExpiredTime,
+                    };
+                    auhToken = authToken;
                     this.at = auhToken.AccessToken;
                     this.apiKey = null;
-                }
-            }
-            else
-            {
-                var refreshExpiry = DateTimeOffset.FromUnixTimeMilliseconds(auhToken.RefreshTokenExpiredTime);
-                if (refreshExpiry < DateTimeOffset.Now)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(auhToken.RefreshToken), "Refresh Token expired");
+                    this.OAuthTokenUpdated?.Invoke(authToken);
                 }
 
-                var body = new { rt = auhToken.RefreshToken, };
-                var uri = new Uri($"{this.ApiUri}v2/user/refresh");
-                var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
-                httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(JsonConvert.SerializeObject(body))}");
-                httpMessage.Headers.Add("X-CK-Appid", AppId);
-                var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
-                httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
-
-                var httpClient = httpClientFactory.CreateClient();
-                var response = await httpClient.SendAsync(httpMessage);
-                var refreshTime = DateTimeOffset.Now;
-                response.EnsureSuccessStatusCode();
-                var rawJson = await response.Content.ReadAsStringAsync();
-                var json = JsonConvert.DeserializeObject<dynamic>(rawJson) !;
-                var refreshTokenData = GetResponseData(json);
-                string accessToken = refreshTokenData.at;
-                long accessTokenExpiredTime = refreshTime.AddDays(30).ToUnixTimeMilliseconds();
-                string refreshToken = refreshTokenData.rt;
-                long refreshTokenExpiredTime = refreshTime.AddDays(60).ToUnixTimeMilliseconds();
-
-                var authToken = new OAuhToken
+                if (this.apiKey is null && this.at != null)
                 {
-                    AccessToken = accessToken, AccessTokenExpiredTime = accessTokenExpiredTime,
-                    RefreshToken = refreshToken,
-                    RefreshTokenExpiredTime = refreshTokenExpiredTime,
-                };
-                auhToken = authToken;
-                this.at = auhToken.AccessToken;
-                this.apiKey = null;
-                this.OAuthTokenUpdated?.Invoke(authToken);
+                    await LoadApiKey();
+                }
             }
-
-            if (this.apiKey is null)
+            finally
             {
-                await LoadApiKey();
+                this.tokenLock.Release(1);
             }
         }
 
@@ -592,6 +626,10 @@
                 if (id == currentId)
                 {
                     this.apiKey = home.apikey;
+                    if (this.at != null)
+                    {
+                        TokenToApiCache.AddOrUpdate(this.at, this.apiKey, (_,  _) => this.apiKey);
+                    }
                 }
             }
         }
@@ -639,13 +677,55 @@
 
         private async Task<dynamic> SendHttpMessage(HttpRequestMessage httpMessage)
         {
-            var httpClient = this.httpClientFactory.CreateClient();
-            var response = await httpClient.SendAsync(httpMessage);
+            this.requestLock.WaitOne();
+            try
+            {
+                if (this.lastRequestTime.HasValue)
+                {
+                    var timeBetweenRequests = DateTimeOffset.UtcNow - this.lastRequestTime.Value;
+                    var timeLeftBetweenRequests = DelayBetweenRequests - timeBetweenRequests;
+                    if (timeLeftBetweenRequests > TimeSpan.Zero)
+                    {
+                        await Task.Delay(timeLeftBetweenRequests);
+                    }
+                }
 
-            response.EnsureSuccessStatusCode();
-            var jsonString = await response.Content.ReadAsStringAsync();
-            dynamic json = JsonConvert.DeserializeObject(jsonString) !;
-            return GetResponseData(json);
+                if (this.callCountPeriodStart.HasValue)
+                {
+                    var timeSinceReset = DateTimeOffset.UtcNow - this.callCountPeriodStart.Value;
+                    var timeLeftToReset = MaxCallCountOverTimePeriod - timeSinceReset;
+                    if (timeLeftToReset <= TimeSpan.Zero)
+                    {
+                        this.callCountForPeriod = 0;
+                    }
+
+                    if (this.callCountForPeriod >= MaxCallCount)
+                    {
+                        await Task.Delay(timeLeftToReset);
+                        this.callCountForPeriod = 0;
+                        this.callCountPeriodStart = null;
+                    }
+                }
+
+                var httpClient = this.httpClientFactory.CreateClient();
+                this.lastRequestTime = DateTimeOffset.UtcNow;
+                this.callCountForPeriod++;
+                if (!this.callCountPeriodStart.HasValue)
+                {
+                    this.callCountPeriodStart = this.lastRequestTime;
+                }
+
+                var response = await httpClient.SendAsync(httpMessage);
+
+                response.EnsureSuccessStatusCode();
+                var jsonString = await response.Content.ReadAsStringAsync();
+                dynamic json = JsonConvert.DeserializeObject(jsonString) !;
+                return GetResponseData(json);
+            }
+            finally
+            {
+                this.requestLock.Release(1);
+            }
         }
 
         private bool CheckLoginParameters(
@@ -704,6 +784,11 @@
             int error = json.error;
             if (error != 0)
             {
+                if (error == 412)
+                {
+                    this.callCountForPeriod = MaxCallCount;
+                }
+
                 string message = json.msg;
                 throw new HttpRequestException($"{error}: {message}");
             }
