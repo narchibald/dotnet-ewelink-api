@@ -29,8 +29,9 @@ namespace EWeLink.Api.Models.Parameters
 
     public enum MotorDirection
     {
-        [EnumMember(Value = "forward")] 
+        [EnumMember(Value = "forward")]
         Forward,
+
         [EnumMember(Value = "backward")]
         Backward,
     }
@@ -39,11 +40,14 @@ namespace EWeLink.Api.Models.Parameters
     {
         [EnumMember(Value = "close")]
         Close,
-        
-        [EnumMember(Value = "open")] 
+
+        [EnumMember(Value = "open")]
         Open,
-        
+
         [EnumMember(Value = "stop")]
         Stop,
+
+        [EnumMember(Value = "pause")]
+        Pause,
     }
 }

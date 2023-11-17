@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;netstandard2.1;net6.0;net7.0;</TargetFrameworks>
+    <TargetFrameworks>net8.0;net6.0;net7.0;netstandard2.0;netstandard2.1;</TargetFrameworks>
     <RootNamespace>EWeLink.Api</RootNamespace>
     <AssemblyName>eWeLink.Api</AssemblyName>
     <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Description>This is a sudo port of the node js library [eWeLink-api](https://github.com/skydiver/ewelink-api) to .Net.</Description>
     <PackageProjectUrl>https://github.com/narchibald/dotnet-ewelink-api</PackageProjectUrl>
@@ -27,9 +27,9 @@
     <PackageReference Include="Base36" Version="1.0.0" />
     <PackageReference Include="Makaretu.Dns.Multicast" Version="0.27.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="7.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
       <PrivateAssets>all</PrivateAssets>
