@@ -1,11 +1,9 @@
-﻿using System.Linq;
-
-namespace EWeLink.Api
+﻿namespace EWeLink.Api
 {
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Reflection;
-
     using Newtonsoft.Json;
 
     internal static class DeviceData
@@ -23,7 +21,7 @@ namespace EWeLink.Api
                     LoadData();
                 }
 
-                return deviceChannelCount;
+                return deviceChannelCount ?? new Dictionary<string, int>();
             }
         }
 
@@ -36,7 +34,7 @@ namespace EWeLink.Api
                     LoadData();
                 }
 
-                return deviceTypeUuid;
+                return deviceTypeUuid ?? new Dictionary<int, string>();
             }
         }
 
@@ -47,7 +45,7 @@ namespace EWeLink.Api
             deviceTypeUuid = LoadAndDeserializeResource<Dictionary<int, string>>("devices-type-uuid.json");
         }
 
-        private static T LoadAndDeserializeResource<T>(string resourceName)
+        private static T? LoadAndDeserializeResource<T>(string resourceName)
         {
             var assembly = typeof(DeviceData).GetTypeInfo().Assembly;
             var serializer = new JsonSerializer();

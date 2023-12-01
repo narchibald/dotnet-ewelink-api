@@ -1,11 +1,15 @@
-﻿namespace EWeLink.Api.Models
+﻿namespace EWeLink.Api.Models.Devices
 {
     using System;
     using System.Collections.Generic;
 
+    using EWeLink.Api.Models.Converters;
+    using EWeLink.Api.Models.Parameters;
+
     using Newtonsoft.Json;
 
-    public class Device
+    [JsonConverter(typeof(DeviceConverter))]
+    public abstract class Device : IDevice
     {
         [JsonProperty("_id")]
         public string? Id { get; set; }
@@ -26,10 +30,10 @@
         public List<object>? Groups { get; set; }
 
         [JsonProperty("devGroups")]
-        public List<object>? DevGroups { get; set; }
+        public List<object> DevGroups { get; set; } = new ();
 
         [JsonProperty("deviceid")]
-        public string? Deviceid { get; set; }
+        public string? DeviceId { get; set; }
 
         [JsonProperty("name")]
         public string? Name { get; set; }
@@ -46,14 +50,14 @@
         [JsonProperty("settings")]
         public Settings? Settings { get; set; }
 
-        [JsonProperty("params")]
-        public Paramaters Paramaters { get; set; } = null!;
-
         [JsonProperty("createdAt")]
         public DateTime CreatedAt { get; set; }
 
         [JsonProperty("shareUsersInfo")]
-        public List<object> ShareUsersInfo { get; set; } = null!;
+        public List<object> ShareUsersInfo { get; set; } = new ();
+
+        [JsonProperty("sharedTo")]
+        public List<object> SharedTo { get; set; } = new ();
 
         [JsonProperty("__v")]
         public int V { get; set; }
@@ -73,6 +77,9 @@
         [JsonProperty("offlineTime")]
         public DateTime? OfflineTime { get; set; }
 
+        [JsonProperty("devicekey")]
+        public string? DeviceKey { get; set; }
+
         [JsonProperty("deviceUrl")]
         public string? DeviceUrl { get; set; }
 
@@ -82,7 +89,24 @@
         [JsonProperty("productModel")]
         public string? ProductModel { get; set; }
 
+        [JsonProperty("showBrand")]
+        public bool ShowBrand { get; set; }
+
+        [JsonProperty("brandLogoUrl")]
+        public string BrandLogoUrl { get; set; } = string.Empty;
+
+        [JsonProperty("devConfig")]
+        public DevConfig? DeviceConfiguration { get; set; }
+
         [JsonProperty("uiid")]
         public int Uiid { get; set; }
+
+        [JsonProperty("denyFeatures")]
+        public string[] DenyFeatures { get; set; }
+
+        // Currently not populated from the fetched API data.
+        public bool HasLanControl => this.LanControl != null;
+
+        public LanControlInformation? LanControl { get; set; }
     }
 }

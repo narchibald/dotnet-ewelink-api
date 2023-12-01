@@ -1,30 +1,58 @@
 ﻿namespace EWeLink.Api
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net.Http;
     using System.Net.Http.Headers;
-    using System.Net.WebSockets;
     using System.Security.Cryptography;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
-
     using EWeLink.Api.Models;
-
+    using EWeLink.Api.Models.Devices;
+    using EWeLink.Api.Models.EventParameters;
+    using EWeLink.Api.Models.LightThemes;
+    using EWeLink.Api.Models.Parameters;
     using Newtonsoft.Json;
+    using Newtonsoft.Json.Converters;
     using Newtonsoft.Json.Linq;
+    using ColorLightParameters = EWeLink.Api.Models.Parameters.ColorLightParameters;
 
-    public class Link
+    public class Link : ILink, ILinkAuthorization
     {
-        private const string AppId = "YzfeftUVcZ6twZw1OoVKPRFYTrGEg01Q";
+        private const int MaxCallCount = 300;
 
-        private const string AppSecret = "4G91qSoboqYO4Y0XJ0LPPKIsq8reHdfa";
+        private const string DefaultAppId = "4s1FXKC9FaGfoqXhmXSJneb3qcm1gOak";
 
-        private static readonly HttpClient HttpClient = new ();
+        private const string DefaultAppSecret = "oKvCM06gvwkRbfetd6qWRrbC3rFrbIpV";
 
-        private readonly Dictionary<string, Device> devicesCache = new ();
+        private static readonly ConcurrentDictionary<string, string> TokenToApiCache = new ConcurrentDictionary<string, string>();
+
+        private static readonly TimeSpan MaxCallCountOverTimePeriod = TimeSpan.FromMinutes(5);
+
+        private static readonly TimeSpan DelayBetweenRequests = TimeSpan.FromMilliseconds(500);
+
+        private readonly ILinkConfiguration configuration;
+
+        private readonly IDeviceCache deviceCache;
+
+        private readonly ILinkWebSocket linkWebSocket;
+
+        private readonly ILinkLanControl lanControl;
+
+        private readonly IHttpClientFactory httpClientFactory;
+
+        private readonly Semaphore requestLock;
+
+        private readonly Semaphore tokenLock;
+
+        private DateTimeOffset? lastRequestTime;
+
+        private int callCountForPeriod = 0;
+
+        private DateTimeOffset? callCountPeriodStart;
 
         private string? region = "us";
 
@@ -38,53 +66,61 @@
 
         private string? apiKey;
 
-        public Link(
-            string? email = null,
-            string? password = null,
-            string? phoneNumber = null,
-            string? region = "us",
-            string? at = null,
-            string? apiKey = null)
+        public Link(ILinkConfiguration configuration, IDeviceCache deviceCache, ILinkWebSocket linkWebSocket, ILinkLanControl lanControl, IHttpClientFactory httpClientFactory)
         {
-            var check = this.CheckLoginParameters(email, phoneNumber, password, at);
-
-            if (!check)
-            {
-                throw new Exception("invalidCredentials");
-            }
-
-            this.region = region;
-            this.phoneNumber = phoneNumber;
-            this.email = email;
-            this.password = password;
-            this.at = at;
-            this.apiKey = apiKey;
+            this.configuration = configuration;
+            this.deviceCache = deviceCache;
+            this.linkWebSocket = linkWebSocket;
+            this.lanControl = lanControl;
+            this.httpClientFactory = httpClientFactory;
+            this.lanControl.ParametersUpdated += e => LanParametersUpdated?.Invoke(e);
+            this.requestLock = new Semaphore(1, 1, configuration.AppId);
+            this.tokenLock = new Semaphore(1, 1, $"{configuration.AppId}_token");
+            this.region = configuration.Region;
+            this.phoneNumber = configuration.PhoneNumber;
+            this.email = configuration.Email;
+            this.password = configuration.Password;
+            this.at = configuration.At;
+            this.apiKey = configuration.ApiKey;
         }
 
-        public Uri ApiUri => new Uri($"https://{this.region}-api.coolkit.cc:8080/api");
+        public event Action<ILinkEvent<IEventParameters>>? LanParametersUpdated;
+
+        public event Action<OAuhToken>? OAuthTokenUpdated;
+
+        public Uri ApiUri => new Uri($"https://{this.region}-apia.coolkit.cc");
 
         public Uri OtaUri => new Uri($"https://{this.region}-ota.coolkit.cc:8080/otaother");
 
         public Uri ApiWebSocketUri => new Uri($"wss://{this.region}-pconnect3.coolkit.cc:8080/api/ws");
 
+        private string AppId => this.configuration.AppId ?? DefaultAppId;
+
+        private string AppSecret => this.configuration.AppSecret ?? DefaultAppSecret;
+
+        private OAuhToken? AuhToken => this.configuration.AuhToken;
+
         public async Task<SensorData?> GetDeviceCurrentSensorData(string deviceId)
         {
             var device = await this.GetDevice(deviceId, true);
 
-            var parameters = device.Paramaters;
-            if (!parameters.CurrentTemperature.HasValue && !parameters.CurrentHumidity.HasValue)
+            if (device is IThermostatDevice thermostatDevice)
             {
-                return null;
-            }
+                var parameters = thermostatDevice.Parameters;
+                if (!parameters.Temperature.HasValue && !parameters.Humidity.HasValue)
+                {
+                    return null;
+                }
 
-            if (parameters.CurrentTemperature.HasValue)
-            {
-                return new SensorData(deviceId, SensorType.Temperature, parameters.CurrentTemperature.Value);
-            }
+                if (parameters.Temperature.HasValue)
+                {
+                    return new SensorData(deviceId, SensorType.Temperature, parameters.Temperature.Value);
+                }
 
-            if (parameters.CurrentHumidity.HasValue)
-            {
-                return new SensorData(deviceId, SensorType.Humidity, parameters.CurrentHumidity.Value);
+                if (parameters.Humidity.HasValue)
+                {
+                    return new SensorData(deviceId, SensorType.Humidity, parameters.Humidity.Value);
+                }
             }
 
             return null;
@@ -107,10 +143,7 @@
             return (credentials.User?.Email, credentials.Region);
         }
 
-        public Task<Device> GetDevice(string deviceId)
-        {
-            return this.GetDevice(deviceId, false);
-        }
+        public Task<IDevice?> GetDevice(string deviceId) => this.GetDevice(deviceId, false);
 
         public int GetDeviceChannelCountByUuid(int uuid)
         {
@@ -118,90 +151,188 @@
             return DeviceData.DeviceChannelCount[deviceType];
         }
 
-        public Task ToggleDevice(string deviceId, int channel = 1)
+        public Task ToggleDevice(string deviceId, ChannelId channel = ChannelId.One)
         {
-            return this.SetDevicePowerState(deviceId, "toggle", channel);
+            return this.SetDevicePowerState(deviceId, SwitchStateChange.Toggle, channel);
         }
 
         public async Task<int> GetDeviceChannelCount(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
-            var uiid = device.Extra.Extended.Uiid;
+            if (device?.Extra is null)
+            {
+                throw new ArgumentNullException(nameof(device.Extra));
+            }
+
+            var uiid = device.Extra.Uiid;
             var switchesAmount = this.GetDeviceChannelCountByUuid(uiid);
 
             return switchesAmount;
         }
 
-        public async Task SetDevicePowerState(string deviceId, string state, int channel = 1)
+        public async Task SetDevicePowerState(string deviceId, SwitchStateChange state, ChannelId channel = ChannelId.One)
         {
             var device = await this.GetDevice(deviceId);
-            var uiid = device.Extra.Extended.Uiid;
+            if (device == null)
+            {
+                throw new KeyNotFoundException("The device id was not found");
+            }
 
-            var status = device.Paramaters.Switch;
-            var switches = device.Paramaters.Switches;
+            if (device.Extra is null)
+            {
+                throw new ArgumentNullException(nameof(device.Extra));
+            }
+
+            var uiid = device.Extra.Uiid;
 
             var switchesAmount = this.GetDeviceChannelCountByUuid(uiid);
-
-            if (switchesAmount > 0 && switchesAmount < channel)
+            if (switchesAmount > 0 && switchesAmount < (int)channel)
             {
                 throw new Exception(NiceError.Custom[CustomErrors.Ch404]);
             }
 
-            var stateToSwitch = state;
-            dynamic parameters = new System.Dynamic.ExpandoObject();
-
-            if (switches != null)
+            SwitchState status;
+            switch (device)
             {
-                status = switches[channel - 1].Switch;
+                case ISingleSwitchDevice singleSwitch:
+                    status = singleSwitch.Parameters.Switch;
+                    break;
+                case ITwoSwitchDevice twoSwitch:
+                    {
+                        status = channel switch
+                        {
+                            ChannelId.One => twoSwitch.Parameters.One.Switch,
+                            ChannelId.Two => twoSwitch.Parameters.Two.Switch,
+                            _ => throw new ArgumentOutOfRangeException(nameof(channel))
+                        };
+                    }
+
+                    break;
+                case IThreeSwitchDevice threeSwitchDevice:
+                    {
+                        status = channel switch
+                        {
+                            ChannelId.One => threeSwitchDevice.Parameters.One.Switch,
+                            ChannelId.Two => threeSwitchDevice.Parameters.Two.Switch,
+                            ChannelId.Three => threeSwitchDevice.Parameters.Three.Switch,
+                            _ => throw new ArgumentOutOfRangeException(nameof(channel))
+                        };
+                    }
+
+                    break;
+
+                case IFourSwitchDevice fourSwitchDevice:
+                    {
+                        status = channel switch
+                        {
+                            ChannelId.One => fourSwitchDevice.Parameters.One.Switch,
+                            ChannelId.Two => fourSwitchDevice.Parameters.Two.Switch,
+                            ChannelId.Three => fourSwitchDevice.Parameters.Three.Switch,
+                            ChannelId.Four => fourSwitchDevice.Parameters.Four.Switch,
+                            _ => throw new ArgumentOutOfRangeException(nameof(channel))
+                        };
+                    }
+
+                    break;
+                default:
+                    throw new NotSupportedException("Device is not a switch");
             }
 
-            if (state == "toggle")
-            {
-                stateToSwitch = status == SwitchState.On ? "off" : "on";
-            }
+            var deviceParameters = ((IDevice<Parameters>)device).Parameters;
+            var parameters = deviceParameters.CreateParameters();
 
-            if (switches != null)
+            var stateToSwitch = state switch
+                {
+                    SwitchStateChange.Toggle => status == SwitchState.On ? SwitchState.Off : SwitchState.On,
+                    SwitchStateChange.On => SwitchState.On,
+                    SwitchStateChange.Off => SwitchState.Off,
+                    _ => throw new ArgumentOutOfRangeException(nameof(state))
+                };
+
+            if (parameters is MultiSwitchParameters multiSwitchParameters)
             {
-                parameters.switches = switches;
-                parameters.switches[channel - 1].@switch = stateToSwitch;
+                var linkSwitch = multiSwitchParameters.Switches.First(x => x.Outlet == (int)channel);
+                linkSwitch.Switch = stateToSwitch;
+
+                // Reduce the switches to only include the channel we want changed
+                multiSwitchParameters.Switches = new[] { linkSwitch };
+            }
+            else if (parameters is SwitchParameters switchParameters)
+            {
+                switchParameters.Switch = stateToSwitch;
             }
             else
             {
-                parameters.@switch = stateToSwitch;
+                throw new ArgumentException(nameof(parameters));
             }
 
-            dynamic response = await this.MakeRequest(
-                                   "/user/device/status",
-                                   body: new
-                                             {
-                                                 deviceid = deviceId,
-                                                 appid = AppId,
-                                                 @params = parameters,
-                                                 nonce = Utilities.Nonce,
-                                                 ts = Utilities.Timestamp,
-                                                 version = 8,
-                                             },
-                                   method: HttpMethod.Post);
-
-            int? responseError = response.error;
-
-            if (responseError > 0)
+            if (device.HasLanControl)
             {
-                throw new Exception(NiceError.Errors[responseError.Value]);
+                var handled = await this.lanControl.SendSwitchRequest(device, parameters);
+                if (handled.HasValue)
+                {
+                    return;
+                }
             }
+
+            await this.MakeRequest(
+                "v2/device/thing/status",
+                body: new
+                {
+                    type = 1,
+                    id = deviceId,
+                    @params = parameters,
+                },
+                method: HttpMethod.Post);
+
+            deviceParameters.Update(parameters);
         }
 
-        public Task<ClientWebSocket> OpenWebSocket()
+        public async Task SetLightColor(string deviceId, LightBrightness value)
         {
-            return this.OpenWebSocket(CancellationToken.None);
+            var device = await this.GetDevice(deviceId);
+
+            if (device == null)
+            {
+                throw new KeyNotFoundException("The device id was not found");
+            }
+
+            if (!(device is Device<ColorLightParameters> colorLight))
+            {
+                throw new NotSupportedException("The given device id is not a color light");
+            }
+
+            var deviceParameters = (ColorLightParameters)colorLight.Parameters.CreateParameters();
+            if (value is Color colorValue)
+            {
+                deviceParameters.LightType = LightType.Color;
+                deviceParameters.Color = colorValue;
+            }
+            else if (value is White whiteValue)
+            {
+                deviceParameters.LightType = LightType.White;
+                deviceParameters.White = whiteValue;
+            }
+
+            await this.MakeRequest(
+                "v2/device/thing/status",
+                body: new
+                {
+                    type = 1,
+                    id = deviceId,
+                    @params = deviceParameters,
+                },
+                method: HttpMethod.Post);
+
+            colorLight.Parameters.Update(deviceParameters);
         }
 
-        public async Task<ClientWebSocket> OpenWebSocket(CancellationToken cancellationToken)
+        public async Task<ILinkWebSocket> OpenWebSocket(CancellationToken cancellationToken = default)
         {
             var wssLoginPayload = JsonConvert.SerializeObject(new
             {
                 action = "userOnline",
-                at = this.at,
+                this.at,
                 apikey = this.apiKey,
                 appid = AppId,
                 nonce = Utilities.Nonce,
@@ -211,64 +342,33 @@
                 version = 8,
             });
 
-            var wsp = new ClientWebSocket();
-            wsp.Options.KeepAliveInterval = TimeSpan.FromMilliseconds(120000);
-
-            await wsp.ConnectAsync(this.ApiWebSocketUri, CancellationToken.None);
-
-            var data = new ArraySegment<byte>(Encoding.UTF8.GetBytes(wssLoginPayload));
-            await wsp.SendAsync(data, WebSocketMessageType.Text, true, cancellationToken);
-
-            var buffer = new ArraySegment<byte>(new byte[8192]);
-            var result = await wsp.ReceiveAsync(buffer, cancellationToken);
-
-            if (result.MessageType == WebSocketMessageType.Text)
-            {
-                var text = Encoding.UTF8.GetString(buffer.Array, 0, result.Count);
-                var json = JsonConvert.DeserializeObject<dynamic>(text);
-                int? error = json.error;
-                if (error > 0)
-                {
-                    throw new Exception($"Error: {error}");
-                }
-            }
-
-            return wsp;
+            await this.linkWebSocket.Open(wssLoginPayload, ApiWebSocketUri, cancellationToken);
+            return this.linkWebSocket;
         }
 
-        public async Task<List<Device>> GetDevices()
+        public void EnableLanControl()
+        {
+            this.lanControl.Start();
+        }
+
+        public async Task<List<IDevice>> GetDevices()
         {
             dynamic response = await this.MakeRequest(
-                                   "/user/device",
-                                   query: new
-                                              {
-                                                  lang = "en",
-                                                  appid = AppId,
-                                                  ts = Utilities.Timestamp,
-                                                  version = 8,
-                                                  getTags = 1,
-                                              });
+                "v2/device/thing",
+                query: new
+                {
+                    lang = "en",
+                    num = 0,
+                });
 
-            JToken jtoken = response.devicelist;
-            if (jtoken == null)
+            JToken thingList = response.thingList;
+            var deviceList = thingList.ToObject<List<Thing>>()?.Select(x => x.ItemData).ToList();
+            if (deviceList != null)
             {
-                throw new HttpRequestException(NiceError.Custom[CustomErrors.NoDevices]);
+                this.deviceCache.UpdateCache(deviceList);
             }
 
-            var devicelist = jtoken.ToObject<List<Device>>();
-            foreach (var device in devicelist)
-            {
-                if (!this.devicesCache.ContainsKey(device.Deviceid))
-                {
-                    this.devicesCache.Add(device.Deviceid, device);
-                }
-                else
-                {
-                    this.devicesCache[device.Deviceid] = device;
-                }
-            }
-
-            return devicelist;
+            return deviceList ?? new List<IDevice>();
         }
 
         public async Task<List<UpdateCheckResult>> CheckAllDeviceUpdates()
@@ -276,80 +376,262 @@
             var devices = await this.GetDevices();
             var result = await this.CheckDeviceUpdates(devices);
 
-            return result.Select(r => new UpdateCheckResult(r.Version != devices.First(d => d.Deviceid == r.DeviceId).Paramaters.FirmWareVersion, r))
+            var genericDevices = devices.Cast<Device<Parameters>>()
+                .Where(x => x.Parameters is LinkParameters)
+                .Cast<Device<LinkParameters>>()
+                .ToDictionary(x => x.DeviceId);
+
+            return result.Select(r => new UpdateCheckResult(r.Version != genericDevices[r.DeviceId].Parameters.FirmWareVersion, r))
                 .ToList();
         }
 
-        public async Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<Device> devices)
+        public async Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<IDevice> devices)
         {
-            var deviceInfoList = this.GetFirmwareUpdateInfo(devices);
+            var genericDevices = devices.Cast<Device<Parameters>>()
+                .Where(x => x.Parameters is LinkParameters)
+                .Cast<Device<LinkParameters>>();
+            var deviceInfoList = GetFirmwareUpdateInfo(genericDevices);
 
             dynamic response = await this.MakeRequest(
-                                   "/app",
-                                   this.OtaUri,
-                                   new { deviceInfoList = deviceInfoList },
-                                   method: HttpMethod.Post);
+                "v2/device/ota/query",
+                body: new { deviceInfoList = deviceInfoList },
+                method: HttpMethod.Post);
 
-            int returnCode = response.rtnCode;
-            JToken token = response.upgradeInfoList;
-            return token.ToObject<List<UpgradeInfo>>();
+            JToken token = response.otaInfoList;
+            return token.ToObject<List<UpgradeInfo>>() ?? new List<UpgradeInfo>();
         }
 
         public async Task<UpdateCheckResult> CheckDeviceUpdate(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
 
+            var genericDevice = device as Device<LinkParameters>;
+
             var result = await this.CheckDeviceUpdates(new[] { device });
 
             var info = result.FirstOrDefault();
-            return new UpdateCheckResult(info.Version != device.Paramaters.FirmWareVersion, info);
+            return new UpdateCheckResult(info!.Version != genericDevice!.Parameters.FirmWareVersion, info);
         }
 
         public async Task<string?> GetFirmwareVersion(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
-            return device.Paramaters.FirmWareVersion;
+            var genericDevice = device as Device<LinkParameters>;
+            return genericDevice!.Parameters.FirmWareVersion;
         }
 
         public async Task<Credentials> GetCredentials()
         {
-            var body = this.CredentialsPayload(email: this.email, phoneNumber: this.phoneNumber, password: this.password);
+            var body = new
+            {
+                password,
+                countryCode = "+86",
+                this.email,
+            };
+            var data = JsonConvert.SerializeObject(body);
 
-            var uri = new Uri($"{this.ApiUri}/user/login");
+            var uri = new Uri($"{this.ApiUri}v2/user/login");
             var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
-            httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(body)}");
-            httpMessage.Content = new StringContent(JsonConvert.SerializeObject(body));
+            httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(data)}");
+            httpMessage.Headers.Add("X-CK-Appid", AppId);
+            httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
 
-            var response = await HttpClient.SendAsync(httpMessage);
+            var httpClient = httpClientFactory.CreateClient();
+            var response = await httpClient.SendAsync(httpMessage);
 
             response.EnsureSuccessStatusCode();
             var jsonString = await response.Content.ReadAsStringAsync();
-            dynamic json = JsonConvert.DeserializeObject(jsonString);
+            dynamic json = JsonConvert.DeserializeObject<dynamic>(jsonString) !;
 
-            int? errorValue = json.error;
-            string region = json.region;
-
-            if (errorValue.HasValue && new[] { 400, 401, 404 }.Contains(errorValue.Value))
-            {
-                throw new HttpRequestException(NiceError.Errors[406]);
-            }
-
-            if (errorValue == 301 && region != null)
-            {
-                if (this.region != region)
-                {
-                    this.region = region;
-                    return await this.GetCredentials();
-                }
-
-                throw new ArgumentOutOfRangeException(nameof(this.region), "Region does not exist");
-            }
-
-            JToken token = json;
-            var credentials = token.ToObject<Credentials>();
-            this.apiKey = credentials.User.Apikey;
+            JToken token = GetResponseData(json);
+            var credentials = token.ToObject<Credentials>() ?? new Credentials();
+            this.apiKey = credentials.User?.Apikey;
             this.at = credentials.At;
             return credentials;
+        }
+
+        public (string Signature, long Seq, string AppId) GetAuthorization()
+        {
+            var seq = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            var authorization = MakeAuthorizationSign($"{AppId}_{seq}");
+            return (authorization, seq, AppId);
+        }
+
+        public async Task<OAuhToken> GetAccessToken(string code, string redirectUri)
+        {
+            var body = new
+            {
+                code,
+                redirectUrl = redirectUri,
+                grantType = "authorization_code",
+            };
+
+            var uri = new Uri($"{this.ApiUri}v2/user/oauth/token");
+            var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
+            httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(JsonConvert.SerializeObject(body))}");
+            httpMessage.Headers.Add("X-CK-Appid", AppId);
+            var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
+            httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
+
+            var httpClient = httpClientFactory.CreateClient();
+            var response = await httpClient.SendAsync(httpMessage);
+            response.EnsureSuccessStatusCode();
+            var responseData = await response.Content.ReadAsStringAsync();
+            dynamic json = JsonConvert.DeserializeObject(responseData) !;
+            JToken tokenData = GetResponseData(json);
+            return tokenData.ToObject<OAuhToken>() !;
+        }
+
+        public async Task ReloadAccessToken()
+        {
+            if (this.AuhToken is null)
+            {
+                return;
+            }
+
+            await ValidateAuthToken();
+        }
+
+        public async Task<IDevice?> GetDevice(string deviceId, bool noCacheLoad)
+        {
+            if (!noCacheLoad && this.deviceCache.TryGetDevice(deviceId, out IDevice? device))
+            {
+                return device!;
+            }
+
+            dynamic response = await this.MakeRequest(
+                $"v2/device/thing",
+                body: new
+                {
+                    thingList = new[]
+                    {
+                        new
+                        {
+                            itemType = 2,
+                            id = deviceId,
+                        },
+                    },
+                }, method: HttpMethod.Post);
+
+            JToken token = response.thingList;
+            if (token == null)
+            {
+                throw new KeyNotFoundException("The device id was not found");
+            }
+
+            device = token.ToObject<List<Thing>>()?.Select(x => x.ItemData).FirstOrDefault();
+            if (device != null)
+            {
+                return this.deviceCache.UpdateCache(device);
+            }
+
+            return device;
+        }
+
+        private async Task ValidateAuthToken()
+        {
+            tokenLock.WaitOne();
+            try
+            {
+                var auhToken = this.AuhToken;
+                if (auhToken is null)
+                {
+                    throw new ArgumentNullException(nameof(auhToken), "ValidateAuthToken called without a access token");
+                }
+
+                var accessExpiry = DateTimeOffset.FromUnixTimeMilliseconds(auhToken.AccessTokenExpiredTime);
+                if (accessExpiry - TimeSpan.FromDays(2) > DateTimeOffset.Now)
+                {
+                    if (this.at != auhToken.AccessToken)
+                    {
+                        this.at = auhToken.AccessToken;
+                        this.apiKey = null;
+                        if (TokenToApiCache.TryGetValue(this.at, out var key))
+                        {
+                            this.apiKey = key;
+                        }
+                    }
+                }
+                else
+                {
+                    var refreshExpiry = DateTimeOffset.FromUnixTimeMilliseconds(auhToken.RefreshTokenExpiredTime);
+                    if (refreshExpiry < DateTimeOffset.Now)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(auhToken.RefreshToken), "Refresh Token expired");
+                    }
+
+                    TokenToApiCache.TryRemove(auhToken.AccessToken, out _);
+                    var body = new { rt = auhToken.RefreshToken, };
+                    var uri = new Uri($"{this.ApiUri}v2/user/refresh");
+                    var httpMessage = new HttpRequestMessage(HttpMethod.Post, uri);
+                    httpMessage.Headers.Add("Authorization", $"Sign {this.MakeAuthorizationSign(JsonConvert.SerializeObject(body))}");
+                    httpMessage.Headers.Add("X-CK-Appid", AppId);
+                    var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
+                    httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
+
+                    var httpClient = httpClientFactory.CreateClient();
+                    var response = await httpClient.SendAsync(httpMessage);
+                    var refreshTime = DateTimeOffset.Now;
+                    response.EnsureSuccessStatusCode();
+                    var rawJson = await response.Content.ReadAsStringAsync();
+                    var json = JsonConvert.DeserializeObject<dynamic>(rawJson) !;
+                    var refreshTokenData = GetResponseData(json);
+                    string accessToken = refreshTokenData.at;
+                    long accessTokenExpiredTime = refreshTime.AddDays(30).ToUnixTimeMilliseconds();
+                    string refreshToken = refreshTokenData.rt;
+                    long refreshTokenExpiredTime = refreshTime.AddDays(60).ToUnixTimeMilliseconds();
+
+                    var authToken = new OAuhToken
+                    {
+                        AccessToken = accessToken, AccessTokenExpiredTime = accessTokenExpiredTime,
+                        RefreshToken = refreshToken,
+                        RefreshTokenExpiredTime = refreshTokenExpiredTime,
+                    };
+                    auhToken = authToken;
+                    this.at = auhToken.AccessToken;
+                    this.apiKey = null;
+                    this.OAuthTokenUpdated?.Invoke(authToken);
+                }
+
+                if (this.apiKey is null && this.at != null)
+                {
+                    await LoadApiKey();
+                }
+            }
+            finally
+            {
+                this.tokenLock.Release(1);
+            }
+        }
+
+        private async Task LoadApiKey()
+        {
+            // Get api key from the family
+            var uriBuilder = new UriBuilder($"{this.ApiUri}v2/family")
+            {
+                Query = this.ToQueryString(new { lang = "en" }),
+            };
+
+            var uri = uriBuilder.Uri;
+            var httpMessage = new HttpRequestMessage(HttpMethod.Get, uri);
+            httpMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", this.at);
+            httpMessage.Headers.Add("X-CK-Appid", AppId);
+            var homeList = await SendHttpMessage(httpMessage);
+            string currentId = homeList.currentFamilyId;
+            int count = homeList.familyList.Count;
+            for (var i = 0; i < count && this.apiKey is null; i++)
+            {
+                dynamic home = homeList.familyList[i];
+                string id = home.id;
+                if (id == currentId)
+                {
+                    this.apiKey = home.apikey;
+                    if (this.at != null)
+                    {
+                        TokenToApiCache.AddOrUpdate(this.at, this.apiKey, (_,  _) => this.apiKey);
+                    }
+                }
+            }
         }
 
         private async Task<dynamic> MakeRequest(string path, Uri? baseUri = null, object? body = null, object? query = null, HttpMethod? method = null)
@@ -359,7 +641,12 @@
                 method = HttpMethod.Get;
             }
 
-            if (string.IsNullOrWhiteSpace(this.at))
+            if (this.AuhToken != null)
+            {
+                await ValidateAuthToken();
+            }
+
+            if (string.IsNullOrWhiteSpace(this.at) && this.AuhToken is null)
             {
                 await this.GetCredentials();
             }
@@ -377,60 +664,68 @@
             var uri = uriBuilder.Uri;
             var httpMessage = new HttpRequestMessage(method, uri);
             httpMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", this.at);
+            httpMessage.Headers.Add("X-CK-Appid", AppId);
 
             if (body != null)
             {
-                var data = JsonConvert.SerializeObject(body);
+                var data = JsonConvert.SerializeObject(body, new StringEnumConverter());
                 httpMessage.Content = new StringContent(data, Encoding.UTF8, "application/json");
             }
 
-            var response = await HttpClient.SendAsync(httpMessage);
-
-            response.EnsureSuccessStatusCode();
-            var jsonString = await response.Content.ReadAsStringAsync();
-            dynamic json = JsonConvert.DeserializeObject(jsonString);
-
-            int? error = json.error;
-
-            if (error > 0)
-            {
-                throw new HttpRequestException(NiceError.Errors[error.Value]);
-            }
-
-            return json;
+            return await SendHttpMessage(httpMessage);
         }
 
-        private async Task<Device> GetDevice(string deviceId, bool noCacheLoad)
+        private async Task<dynamic> SendHttpMessage(HttpRequestMessage httpMessage)
         {
-            if (!noCacheLoad && this.devicesCache.TryGetValue(deviceId, out Device device))
+            this.requestLock.WaitOne();
+            try
             {
-                return device;
+                if (this.lastRequestTime.HasValue)
+                {
+                    var timeBetweenRequests = DateTimeOffset.UtcNow - this.lastRequestTime.Value;
+                    var timeLeftBetweenRequests = DelayBetweenRequests - timeBetweenRequests;
+                    if (timeLeftBetweenRequests > TimeSpan.Zero)
+                    {
+                        await Task.Delay(timeLeftBetweenRequests);
+                    }
+                }
+
+                if (this.callCountPeriodStart.HasValue)
+                {
+                    var timeSinceReset = DateTimeOffset.UtcNow - this.callCountPeriodStart.Value;
+                    var timeLeftToReset = MaxCallCountOverTimePeriod - timeSinceReset;
+                    if (timeLeftToReset <= TimeSpan.Zero)
+                    {
+                        this.callCountForPeriod = 0;
+                    }
+
+                    if (this.callCountForPeriod >= MaxCallCount)
+                    {
+                        await Task.Delay(timeLeftToReset);
+                        this.callCountForPeriod = 0;
+                        this.callCountPeriodStart = null;
+                    }
+                }
+
+                var httpClient = this.httpClientFactory.CreateClient();
+                this.lastRequestTime = DateTimeOffset.UtcNow;
+                this.callCountForPeriod++;
+                if (!this.callCountPeriodStart.HasValue)
+                {
+                    this.callCountPeriodStart = this.lastRequestTime;
+                }
+
+                var response = await httpClient.SendAsync(httpMessage);
+
+                response.EnsureSuccessStatusCode();
+                var jsonString = await response.Content.ReadAsStringAsync();
+                dynamic json = JsonConvert.DeserializeObject(jsonString) !;
+                return GetResponseData(json);
             }
-
-            dynamic response = await this.MakeRequest(
-                                   $"/user/device/{deviceId}",
-                                   query: new
-                                              {
-                                                  deviceid = deviceId,
-                                                  appid = AppId,
-                                                  nonce = Utilities.Nonce,
-                                                  ts = Utilities.Timestamp,
-                                                  version = 8,
-                                              });
-
-            JToken token = response;
-
-            device = token.ToObject<Device>();
-            if (this.devicesCache.ContainsKey(deviceId))
+            finally
             {
-                this.devicesCache[deviceId] = device;
+                this.requestLock.Release(1);
             }
-            else
-            {
-                this.devicesCache.Add(deviceId, device);
-            }
-
-            return device;
         }
 
         private bool CheckLoginParameters(
@@ -454,6 +749,11 @@
 
         private string ToQueryString(object? qs)
         {
+            if (qs is null)
+            {
+                return string.Empty;
+            }
+
             var properties = from p in qs.GetType().GetProperties()
                 where p.GetValue(qs, null) != null
                 select p.Name + "=" + System.Web.HttpUtility.UrlEncode(p.GetValue(qs, null).ToString());
@@ -461,24 +761,12 @@
             return string.Join("&", properties.ToArray());
         }
 
-        private string MakeAuthorizationSign(PayLoad? body)
+        private string MakeAuthorizationSign(string data)
         {
-            var crypto = HMACSHA256.Create("HmacSHA256");
+            var crypto = HMAC.Create("HmacSHA256");
             crypto.Key = Encoding.UTF8.GetBytes(AppSecret);
-            var hash = crypto.ComputeHash(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(body)));
+            var hash = crypto.ComputeHash(Encoding.UTF8.GetBytes(data));
             return Convert.ToBase64String(hash);
-        }
-
-        private PayLoad CredentialsPayload(string? email, string? phoneNumber, string? password)
-        {
-            return new PayLoad(
-                AppId,
-                email,
-                phoneNumber,
-                password,
-                Utilities.Timestamp,
-                8,
-                Utilities.Nonce);
         }
 
         private string GetDeviceTypeByUiid(int uiid)
@@ -491,14 +779,33 @@
             return string.Empty;
         }
 
-        private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device> devices)
+        private dynamic GetResponseData(dynamic json)
         {
-            return devices.Select(d => new FirmwareUpdateInfo
-                                           {
-                                               Model = d.Extra.Extended.Model,
-                                               Version = d.Paramaters.Version,
-                                               DeviceId = d.Deviceid,
-                                           }).ToList();
+            int error = json.error;
+            if (error != 0)
+            {
+                if (error == 412)
+                {
+                    this.callCountForPeriod = MaxCallCount;
+                }
+
+                string message = json.msg;
+                throw new HttpRequestException($"{error}: {message}");
+            }
+
+            return json.data;
+        }
+
+        private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device<LinkParameters>> devices)
+        {
+            return devices.Select(
+                    d => new FirmwareUpdateInfo
+                    {
+                        Model = d.Extra?.Model,
+                        Version = d.Parameters.Version,
+                        DeviceId = d.DeviceId,
+                    })
+                .ToList();
         }
 
         private class PayLoad
@@ -515,7 +822,7 @@
             }
 
             [JsonProperty("appid")]
-            public string AppId { get; }
+            public string? AppId { get; }
 
             [JsonProperty("email")]
             public string? Email { get; }

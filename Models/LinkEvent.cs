@@ -2,33 +2,64 @@
 {
     using Newtonsoft.Json;
 
-    public class LinkEvent
+    public enum EventSource
     {
+        Cloud,
+
+        Lan,
+    }
+
+    public interface ILinkEvent<out T>
+        where T : EventParameters.IEventParameters
+    {
+        EventAction Action { get; set; }
+
+        public string? DeviceId { get; }
+
+        public int Uiid { get; }
+
+        public string? Apikey { get; }
+
+        public string UserAgent { get; }
+
+        public long DSeq { get; }
+
+        public T Parameters { get; }
+
+        public string From { get; }
+
+        public EventSource EventSource { get; }
+    }
+
+    public class LinkEvent<T> : ILinkEvent<T>
+        where T : EventParameters.IEventParameters
+    {
+        [JsonProperty("action")]
         public EventAction Action { get; set; }
 
-        public string DeviceId { get; set; } = null!;
+        [JsonProperty("deviceid")]
+        public string? DeviceId { get; set; }
 
-        public string? ApiKey { get; set; }
+        [JsonProperty("uiid")]
+        public int Uiid { get; set; }
 
-        public string? UserAgent { get; set; }
+        [JsonProperty("apikey")]
+        public string? Apikey { get; set; }
 
-        [JsonProperty("ts")]
-        public long Timestamp { get; set; }
+        [JsonProperty("userAgent")]
+        public string UserAgent { get; set; } = string.Empty;
 
-        [JsonProperty("proxyMsgTime")]
-        public long? ProxyMessageTime { get; set; }
+        [JsonProperty("d_seq")]
+        public long DSeq { get; set; }
 
         [JsonProperty("params")]
-        public EventParameters Parameters { get; set; } = null!;
+        public T Parameters { get; set; }
 
-        public string? From { get; set; }
+        [JsonProperty("from")]
+        public string From { get; set; } = string.Empty;
 
-        public long Sequence { get; set; }
-
-        public long Seq { get; set; }
-
-        public string? PartnerApikey { get; set; }
-
-        public string? TempRec { get; set; }
+        // This is not a standard property.
+        [JsonProperty("eventSource")]
+        public EventSource EventSource { get; set; }
     }
 }

@@ -7,9 +7,9 @@
     public class Tags
     {
         [JsonProperty("m_760c_arch")]
-        public string M760cArch { get; set; }
+        public string? M760cArch { get; set; }
 
         [JsonProperty("disable_timers")]
-        public List<object> DisableTimers { get; set; }
+        public List<object> DisableTimers { get; set; } = new ();
     }
 }
