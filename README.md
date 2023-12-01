@@ -7,17 +7,41 @@ This is a sudo port of the node js library [eWeLink-api](https://github.com/skyd
 * .Net Standard 2.1
 * .Net 5
 * .Net 6
+* .Net 7
+* .Net 8
+
+## Whats New
+The old ewelink url's seems to have be shutdown, because of this we found that we should have changed to the Coolkit API's - https://coolkit-technologies.github.io/eWeLink-API/#/en/PlatformOverview. 
+We have update the code to use these similair API's and made the code work. This does come with some changes to auth and the way we get started. If these changed are way too much for you to handle at the moment we have 
+branched the old code off to the 'v1' branch. 
+
+* 0Auth token auth
+* Lan Control
+* Typed devices
+* Named switch channels
+* New Sonoff device type support
+* Correct request count limiting
+* Dependency Inject support
 
 ## Getting started
 
 nuget install ___Comming soon___
 
 ```csharp
-// make a connection
-var link = new Link("happy@somewhere.com", "thisisnotapassword");
+// Create a class that ILinkConfiguration interface  
+class LinkConfiguration : ILinkConfiguration {
+..
+}
 
-// if you don't know your region then you can get and set it by calling the following
-(string email, string region) = await GetRegion();
+// Register the configuration class with the Microsoft Dependency Container
+services.AddSingleton<EWeLink.Api.ILinkConfiguration, LinkConfiguration>()
+
+// Add services to the Microsoft Dependency Container
+services.AddEWeLinkServices()
+
+// Get the ILink service from the container 
+var link = services.GetRequiredService<ILink>()
+// or get it injected into a class
 
 // Get your device list
 var deviceList = await link.GetDevices()
