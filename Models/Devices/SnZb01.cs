@@ -3,7 +3,7 @@
     using EWeLink.Api.Models.Parameters;
 
     [DeviceIdentifier(1000)]
-    public class SnZb01 : Device<SnZbButtonParameters>
+    public class SnZb01 : Device<SnZbButtonParameters, Tags>
     {
     }
 }

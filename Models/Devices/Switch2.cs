@@ -3,7 +3,7 @@
     using EWeLink.Api.Models.Parameters;
 
     [DeviceIdentifier(7)]
-    public class Switch2 : Device<TwoSwitchParameters>, ITwoSwitchDevice
+    public class Switch2 : MultiSwitchDevice<TwoSwitchParameters>, ITwoSwitchDevice
     {
     }
 }

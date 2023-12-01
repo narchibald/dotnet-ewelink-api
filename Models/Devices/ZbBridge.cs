@@ -9,7 +9,7 @@
     using Newtonsoft.Json;
 
     [DeviceIdentifier(66)]
-    public class ZbBridge : Device<ZbBridgeParameters>
+    public class ZbBridge : Device<ZbBridgeParameters, Tags>
     {
         [JsonProperty("relational")]
         public List<object> Relational { get; set; } = new ();

@@ -3,7 +3,7 @@
     using EWeLink.Api.Models.Parameters;
 
     [DeviceIdentifier(204)]
-    public class AiBridge26 : Device<IHostParameters>
+    public class AiBridge26 : Device<IHostParameters, Tags>
     {
     }
 }

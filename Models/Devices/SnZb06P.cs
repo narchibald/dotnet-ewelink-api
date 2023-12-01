@@ -3,7 +3,7 @@
     using EWeLink.Api.Models.Parameters;
 
     [DeviceIdentifier(7016)]
-    public class SnZb06P : Device<SnZbHumanPresenceParameters>
+    public class SnZb06P : Device<SnZbHumanPresenceParameters, Tags>
     {
     }
 }

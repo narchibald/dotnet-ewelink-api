@@ -4,7 +4,7 @@ namespace EWeLink.Api.Models.Devices
 
     [DeviceIdentifier(1514)]
     [DeviceIdentifier(7006)]
-    public class ZbCurtain : Device<ZbCurtainParameters>
+    public class ZbCurtain : Device<ZbCurtainParameters, Tags>
     {
     }
 }

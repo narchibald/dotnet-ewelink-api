@@ -48,8 +48,6 @@ namespace EWeLink.Api.Models.Devices
 
         string? Location { get; set; }
 
-        Tags? Tags { get; set; }
-
         DateTime? OfflineTime { get; set; }
 
         string? DeviceKey { get; set; }
@@ -73,16 +71,22 @@ namespace EWeLink.Api.Models.Devices
         LanControlInformation? LanControl { get; set; }
     }
 
-    public interface IDevice<out T> : IDevice
+    public interface IDevice<out T, out TT> : IDevice
         where T : Parameters.Parameters
     {
         public T Parameters { get; }
+
+        public TT Tags { get; }
     }
 
-    public class Device<T> : Device, IDevice<T>
+    public class Device<T, TT> : Device, IDevice<T, TT>
         where T : Parameters.Parameters
+        where TT : Tags
     {
         [JsonProperty("params")]
         public T Parameters { get; set; } = null!;
+
+        [JsonProperty("tags")]
+        public TT? Tags { get; set; }
     }
 }

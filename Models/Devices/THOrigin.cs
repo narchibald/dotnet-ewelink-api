@@ -2,12 +2,12 @@ namespace EWeLink.Api.Models.Devices
 {
     using EWeLink.Api.Models.Parameters;
 
-    public interface ITHOrigin : IDevice<THOriginParameters>
+    public interface ITHOrigin : IDevice<THOriginParameters, Tags>
     {
     }
 
     [DeviceIdentifier(181)]
-    public class THOrigin : Device<THOriginParameters>, ITHOrigin, ISingleSwitchDevice, IThermostatDevice
+    public class THOrigin : Device<THOriginParameters, Tags>, ITHOrigin, ISingleSwitchDevice, IThermostatDevice
     {
         SwitchParameters ISingleSwitchDevice.Parameters => this.Parameters;
 
