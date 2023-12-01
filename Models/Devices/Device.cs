@@ -71,6 +71,9 @@
         [JsonProperty("location")]
         public string? Location { get; set; }
 
+        [JsonProperty("tags")]
+        public Tags? Tags { get; set; }
+
         [JsonProperty("offlineTime")]
         public DateTime? OfflineTime { get; set; }
 

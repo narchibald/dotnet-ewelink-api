@@ -3,7 +3,7 @@
     using EWeLink.Api.Models.Parameters;
 
     [DeviceIdentifier(59)]
-    public class RgbLightStrip : Device<RgbLightStripParameters, Tags>
+    public class RgbLightStrip : Device<RgbLightStripParameters>
     {
     }
 }

@@ -121,7 +121,7 @@ namespace EWeLink.Api
                 if (action == EventAction.Update)
                 {
                     var device = await this.link.Value.GetDevice(deviceId ?? string.Empty);
-                    if (device is IDevice<Parameters, Tags> typedDevice)
+                    if (device is IDevice<Parameters> typedDevice)
                     {
                         var updateResult = typedDevice.Parameters.Update(jsonObjectParams.ToString());
                         if (typeof(IMultiSwitchEventParameters).IsAssignableFrom(deviceType) && updateResult.HasValue)

@@ -242,7 +242,7 @@
                 var parametersJsonObject = JObject.Parse(json);
                 var deviceUiid = device.Uiid;
                 Type deviceType = this.deviceCache.GetEventParameterTypeForUiid(deviceUiid) ?? typeof(EventParameters);
-                if (device is IDevice<Parameters, Tags> typedDevice)
+                if (device is IDevice<Parameters> typedDevice)
                 {
                     var updateResult = typedDevice.Parameters.Update(json);
                     if (typeof(IMultiSwitchEventParameters).IsAssignableFrom(deviceType) && updateResult.HasValue)

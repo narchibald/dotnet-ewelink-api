@@ -238,7 +238,7 @@
                     throw new NotSupportedException("Device is not a switch");
             }
 
-            var deviceParameters = ((IDevice<Parameters, Tags>)device).Parameters;
+            var deviceParameters = ((IDevice<Parameters>)device).Parameters;
             var parameters = deviceParameters.CreateParameters();
 
             var stateToSwitch = state switch
@@ -297,7 +297,7 @@
                 throw new KeyNotFoundException("The device id was not found");
             }
 
-            if (!(device is Device<ColorLightParameters, Tags> colorLight))
+            if (!(device is Device<ColorLightParameters> colorLight))
             {
                 throw new NotSupportedException("The given device id is not a color light");
             }
@@ -376,9 +376,9 @@
             var devices = await this.GetDevices();
             var result = await this.CheckDeviceUpdates(devices);
 
-            var genericDevices = devices.Cast<Device<Parameters, Tags>>()
+            var genericDevices = devices.Cast<Device<Parameters>>()
                 .Where(x => x.Parameters is LinkParameters)
-                .Cast<Device<LinkParameters, Tags>>()
+                .Cast<Device<LinkParameters>>()
                 .ToDictionary(x => x.DeviceId);
 
             return result.Select(r => new UpdateCheckResult(r.Version != genericDevices[r.DeviceId].Parameters.FirmWareVersion, r))
@@ -387,9 +387,9 @@
 
         public async Task<List<UpgradeInfo>> CheckDeviceUpdates(IEnumerable<IDevice> devices)
         {
-            var genericDevices = devices.Cast<Device<Parameters, Tags>>()
+            var genericDevices = devices.Cast<Device<Parameters>>()
                 .Where(x => x.Parameters is LinkParameters)
-                .Cast<Device<LinkParameters, Tags>>();
+                .Cast<Device<LinkParameters>>();
             var deviceInfoList = GetFirmwareUpdateInfo(genericDevices);
 
             dynamic response = await this.MakeRequest(
@@ -405,7 +405,7 @@
         {
             var device = await this.GetDevice(deviceId);
 
-            var genericDevice = device as Device<LinkParameters, Tags>;
+            var genericDevice = device as Device<LinkParameters>;
 
             var result = await this.CheckDeviceUpdates(new[] { device });
 
@@ -416,7 +416,7 @@
         public async Task<string?> GetFirmwareVersion(string deviceId)
         {
             var device = await this.GetDevice(deviceId);
-            var genericDevice = device as Device<LinkParameters, Tags>;
+            var genericDevice = device as Device<LinkParameters>;
             return genericDevice!.Parameters.FirmWareVersion;
         }
 
@@ -796,7 +796,7 @@
             return json.data;
         }
 
-        private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device<LinkParameters, Tags>> devices)
+        private List<FirmwareUpdateInfo> GetFirmwareUpdateInfo(IEnumerable<Device<LinkParameters>> devices)
         {
             return devices.Select(
                     d => new FirmwareUpdateInfo

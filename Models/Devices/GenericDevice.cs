@@ -2,7 +2,7 @@
 {
     using EWeLink.Api.Models.Parameters;
 
-    public class GenericDevice : Device<Parameters, Tags>
+    public class GenericDevice : Device<Parameters>
     {
     }
 }

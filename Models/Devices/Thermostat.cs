@@ -3,7 +3,7 @@
     using EWeLink.Api.Models.Parameters;
 
     [DeviceIdentifier(15)]
-    public class Thermostat : Device<ThermostatSwitchParameters, Tags>, ISingleSwitchDevice, IThermostatDevice
+    public class Thermostat : Device<ThermostatSwitchParameters>, ISingleSwitchDevice, IThermostatDevice
     {
         SwitchParameters ISingleSwitchDevice.Parameters => this.Parameters;
 
