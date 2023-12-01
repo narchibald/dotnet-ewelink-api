@@ -4,7 +4,7 @@
 
     using Newtonsoft.Json;
 
-    public class SnZbThermostatParameters : SnZbParameters, IThermostatParameters
+    public class SnZbThermostatParameters : SnZbBatteryParameters, IThermostatParameters
     {
         [JsonProperty("temperature")]
         [JsonConverter(typeof(ThermostatConverter))]

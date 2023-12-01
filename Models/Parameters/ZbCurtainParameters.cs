@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace EWeLink.Api.Models.Parameters
 {
-    public class ZbCurtainParameters : SnZbParameters
+    public class ZbCurtainParameters : SnZbBatteryParameters
     {
         [JsonProperty("supportPowConfig")]
         public int SupportPowerConfiguration { get; set; }

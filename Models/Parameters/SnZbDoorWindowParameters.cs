@@ -4,7 +4,7 @@
 
     using Newtonsoft.Json;
 
-    public class SnZbDoorWindowParameters : SnZbParameters
+    public class SnZbDoorWindowParameters : SnZbBatteryParameters
     {
         [JsonProperty("lock")]
         public bool Open { get; set; }

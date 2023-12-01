@@ -2,7 +2,7 @@
 {
     using Newtonsoft.Json;
 
-    public class SnZbButtonParameters : SnZbParameters
+    public class SnZbButtonParameters : SnZbBatteryParameters
     {
         [JsonProperty("key")]
         public KeyTrigger Key { get; set; }

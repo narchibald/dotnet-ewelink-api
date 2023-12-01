@@ -14,9 +14,6 @@
         [JsonProperty("parentid")]
         public string? ParentId { get; set; }
 
-        [JsonProperty("battery")]
-        public int Battery { get; set; }
-
         [JsonProperty("timeZone")]
         public decimal? TimeZone { get; set; }
 

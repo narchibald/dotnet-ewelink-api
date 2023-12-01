@@ -101,6 +101,9 @@
         [JsonProperty("uiid")]
         public int Uiid { get; set; }
 
+        [JsonProperty("denyFeatures")]
+        public string[] DenyFeatures { get; set; }
+
         // Currently not populated from the fetched API data.
         public bool HasLanControl => this.LanControl != null;
 

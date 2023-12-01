@@ -2,7 +2,7 @@
 {
     using Newtonsoft.Json;
 
-    public class SnZbMotionParameters : SnZbParameters
+    public class SnZbMotionParameters : SnZbBatteryParameters
     {
         [JsonProperty("motion")]
         public Motion Motion { get; set; }
