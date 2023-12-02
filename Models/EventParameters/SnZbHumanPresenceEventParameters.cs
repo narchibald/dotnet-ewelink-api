@@ -1,11 +1,12 @@
 ﻿namespace EWeLink.Api.Models.EventParameters
 {
+    using EWeLink.Api.Models;
     using Newtonsoft.Json;
 
     public interface ISnZbHumanPresenceEventParameters
         : ISnZbEventParameters
     {
-        int Human { get; set; }
+        Presence Human { get; set; }
     }
 
     [EventDeviceIdentifier(7016)]
@@ -13,6 +14,6 @@
         : SnZbEventParameters, ISnZbHumanPresenceEventParameters
     {
         [JsonProperty("human")]
-        public int Human { get; set; }
+        public Presence Human { get; set; }
     }
 }

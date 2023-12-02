@@ -5,7 +5,7 @@
     public class SnZbHumanPresenceParameters : SnZbParameters
     {
         [JsonProperty("human")]
-        public int Human { get; set; }
+        public Presence Human { get; set; }
 
         [JsonProperty("brState")]
         public string BrState { get; set; }
