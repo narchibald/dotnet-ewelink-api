@@ -7,6 +7,11 @@
         MultiSwitchParameters Parameters { get; }
     }
 
+    public interface IOneSwitchDevice
+    {
+        OneSwitchParameters Parameters { get; }
+    }
+
     public interface ITwoSwitchDevice
     {
         TwoSwitchParameters Parameters { get; }

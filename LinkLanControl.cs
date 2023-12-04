@@ -210,13 +210,23 @@
                     return;
                 }
 
-                var encrypted = information["encrypt"] == "true";
+                bool encrypted = false;
+                if (information.TryGetValue("encrypt", out var encryptValue))
+                {
+                    encrypted = encryptValue == "true";
+                }
+
                 if (!device!.HasLanControl)
                 {
                     device.LanControl = new LanControlInformation(ipAddress, port, encrypted);
                 }
 
-                var seq = long.Parse(information["seq"]);
+                long seq = 0;
+                if (information.TryGetValue("seq", out var seqValue))
+                {
+                    seq = long.Parse(seqValue);
+                }
+
                 var eventTime = new DateTimeOffset(DateTime.SpecifyKind(txtRecord.CreationTime, DateTimeKind.Local)); // this is in local time
                 var hasPreviousSeq = this.deviceLastSeq.TryGetValue(id, out var previousSeq);
                 if (previousSeq >= seq)
@@ -228,7 +238,7 @@
                 var json = GetData(information);
                 if (encrypted)
                 {
-                    var iv = information["iv"];
+                    information.TryGetValue("iv", out var iv);
                     var deviceKey = device.DeviceKey;
                     if (deviceKey is null)
                     {

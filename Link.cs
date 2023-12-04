@@ -197,6 +197,9 @@
                 case ISingleSwitchDevice singleSwitch:
                     status = singleSwitch.Parameters.Switch;
                     break;
+                case IOneSwitchDevice oneSwitch:
+                    status = oneSwitch.Parameters.One.Switch;
+                    break;
                 case ITwoSwitchDevice twoSwitch:
                     {
                         status = channel switch
