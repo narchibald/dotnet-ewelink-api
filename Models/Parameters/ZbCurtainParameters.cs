@@ -1,8 +1,7 @@
-using System.Runtime.Serialization;
-using Newtonsoft.Json;
-
 namespace EWeLink.Api.Models.Parameters
 {
+    using Newtonsoft.Json;
+
     public class ZbCurtainParameters : SnZbBatteryParameters
     {
         [JsonProperty("supportPowConfig")]
@@ -25,29 +24,5 @@ namespace EWeLink.Api.Models.Parameters
 
         [JsonProperty("openPercent")]
         public int OpenPercent { get; set; }
-    }
-
-    public enum MotorDirection
-    {
-        [EnumMember(Value = "forward")]
-        Forward,
-
-        [EnumMember(Value = "backward")]
-        Backward,
-    }
-
-    public enum CurtainAction
-    {
-        [EnumMember(Value = "close")]
-        Close,
-
-        [EnumMember(Value = "open")]
-        Open,
-
-        [EnumMember(Value = "stop")]
-        Stop,
-
-        [EnumMember(Value = "pause")]
-        Pause,
     }
 }
