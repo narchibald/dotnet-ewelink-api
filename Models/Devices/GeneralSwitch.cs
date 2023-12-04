@@ -7,7 +7,7 @@
     }
 
     [DeviceIdentifier(1)]
-    public class GeneralSwitch : Device<SwitchParameters>, IGeneralSwitch
+    public class GeneralSwitch : Device<SwitchParameters>, IGeneralSwitch, ISingleSwitchDevice
     {
     }
 }
