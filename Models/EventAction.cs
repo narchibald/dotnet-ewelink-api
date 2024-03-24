@@ -18,5 +18,8 @@
 
         [EnumMember(Value = "reportSubDevice")]
         ReportSubDevice,
+
+        [EnumMember(Value = "subDevice")]
+        SubDevice,
     }
 }
