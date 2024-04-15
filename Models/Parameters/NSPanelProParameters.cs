@@ -42,9 +42,6 @@ namespace EWeLink.Api.Models.Parameters
         [JsonProperty("sysVersion")]
         public string? SystemVersion { get; set; }
 
-        [JsonProperty("fwVersion")]
-        public string? FirmwareVersion { get; set; }
-
         [JsonProperty("zigbeeVersion")]
         public string? ZigbeeVersion { get; set; }
 

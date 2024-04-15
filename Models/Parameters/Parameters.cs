@@ -8,6 +8,12 @@
         [JsonProperty("bindInfos")]
         public BindInfos? BindInfos { get; set; }
 
+        [JsonProperty("fwVersion")]
+        public string FirmwareVersion { get; set; } = string.Empty;
+
+        [JsonProperty("model")]
+        public string Model { get; set; } = string.Empty;
+
         public virtual Parameters CreateParameters() => new Parameters();
 
         public int? Update(dynamic data) => Update(JsonConvert.SerializeObject(data, new StringEnumConverter()));
