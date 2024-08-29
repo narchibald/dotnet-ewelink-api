@@ -11,7 +11,7 @@
         public int? PulseWidth { get; set; }
 
         [JsonProperty("switch")]
-        public SwitchState Switch { get; set; }
+        public virtual SwitchState Switch { get; set; }
 
         public override Parameters CreateParameters()
         {

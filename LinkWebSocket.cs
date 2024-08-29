@@ -115,8 +115,7 @@ namespace EWeLink.Api
             }
 
             Type deviceType = deviceUiid.HasValue ? this.deviceCache.GetEventParameterTypeForUiid(deviceUiid.Value) ?? typeof(EventParameters) : typeof(EventParameters);
-            JObject? jsonObjectParams = eventData.Params;
-            if (jsonObjectParams != null)
+            if (jsonObject.GetValue("params") is JObject jsonObjectParams)
             {
                 if (action == EventAction.Update)
                 {

@@ -8,7 +8,7 @@
         bool Open { get; set; }
     }
 
-    [EventDeviceIdentifier(3026)]
+    [EventDeviceIdentifier(3026, 7003)]
     public class SnZbDoorWindowEventParameters
         : SnZbEventParameters, ISnZbDoorWindowEventParameters
     {

@@ -8,5 +8,8 @@
     {
         [JsonProperty("lock")]
         public bool Open { get; set; }
+
+        [JsonProperty("split")]
+        public int? Split { get; set; }
     }
 }
