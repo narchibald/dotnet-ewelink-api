@@ -70,6 +70,8 @@ namespace EWeLink.Api.Models.Devices
 
         bool HasLanControl { get; }
 
+        bool IsPoweredByCube { get; }
+
         LanControlInformation? LanControl { get; set; }
     }
 

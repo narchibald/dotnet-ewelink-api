@@ -5,5 +5,6 @@ namespace EWeLink.Api.Models.Devices
     [DeviceIdentifier(195)]
     public class NSPanelPro : Device<NSPanelProParameters>
     {
+        public override bool IsPoweredByCube => true;
     }
 }

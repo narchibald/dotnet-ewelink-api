@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace EWeLink.Api
 {
     using System;
@@ -26,7 +24,5 @@ namespace EWeLink.Api
         string? AppSecret { get; }
 
         TimeSpan? DeviceCacheTimeout { get; }
-
-        IReadOnlyDictionary<string, string> DeviceAccessTokens { get; }
     }
 }

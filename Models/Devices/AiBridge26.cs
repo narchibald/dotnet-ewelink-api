@@ -5,5 +5,6 @@
     [DeviceIdentifier(204)]
     public class AiBridge26 : Device<IHostParameters>
     {
+        public override bool IsPoweredByCube => true;
     }
 }

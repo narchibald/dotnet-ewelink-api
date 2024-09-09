@@ -34,6 +34,16 @@
         public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             var nullableType = Nullable.GetUnderlyingType(objectType);
+            switch (reader.Value)
+            {
+                case long longValue:
+                    return (decimal)longValue;
+                case int intValue:
+                    return (decimal)intValue;
+                case short shortValue:
+                    return (decimal)shortValue;
+            }
+
             string? val = reader.Value as string;
             if (string.IsNullOrEmpty(val))
             {

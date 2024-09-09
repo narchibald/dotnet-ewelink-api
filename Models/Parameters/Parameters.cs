@@ -16,7 +16,14 @@
 
         public virtual Parameters CreateParameters() => new Parameters();
 
-        public int? Update(dynamic data) => Update(JsonConvert.SerializeObject(data, new StringEnumConverter()));
+        public int? Update(dynamic data)
+        {
+            return Update(JsonConvert.SerializeObject(data, new JsonSerializerSettings()
+            {
+                Converters = [new StringEnumConverter()],
+                NullValueHandling = NullValueHandling.Ignore,
+            }));
+        }
 
         public virtual int? Update(string jsonData)
         {

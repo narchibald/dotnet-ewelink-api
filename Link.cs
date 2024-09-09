@@ -74,6 +74,7 @@
             this.lanControl = lanControl;
             this.httpClientFactory = httpClientFactory;
             this.lanControl.ParametersUpdated += e => LanParametersUpdated?.Invoke(e);
+            this.lanControl.DiscoveredDevice += d => DiscoveredLanControlDevice?.Invoke(d);
             this.requestLock = new Semaphore(1, 1, configuration.AppId);
             this.tokenLock = new Semaphore(1, 1, $"{configuration.AppId}_token");
             this.region = configuration.Region;
@@ -85,6 +86,8 @@
         }
 
         public event Action<ILinkEvent<IEventParameters>>? LanParametersUpdated;
+
+        public event Action<IDevice>? DiscoveredLanControlDevice;
 
         public event Action<OAuhToken>? OAuthTokenUpdated;
 

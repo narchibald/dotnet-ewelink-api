@@ -107,6 +107,8 @@
         // Currently not populated from the fetched API data.
         public bool HasLanControl => this.LanControl != null;
 
+        public virtual bool IsPoweredByCube => false;
+
         public LanControlInformation? LanControl { get; set; }
     }
 }

@@ -13,6 +13,8 @@ namespace EWeLink.Api
     {
         event Action<ILinkEvent<IEventParameters>>? LanParametersUpdated;
 
+        event Action<IDevice>? DiscoveredLanControlDevice;
+
         Uri ApiUri { get; }
 
         Uri OtaUri { get; }

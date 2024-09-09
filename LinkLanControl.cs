@@ -27,6 +27,8 @@
     {
         event Action<ILinkEvent<IEventParameters>>? ParametersUpdated;
 
+        event Action<IDevice>? DiscoveredDevice;
+
         Task<bool?> SendSwitchRequest(IDevice device, Parameters data);
 
         void Start();
@@ -72,6 +74,8 @@
         }
 
         public event Action<ILinkEvent<IEventParameters>>? ParametersUpdated;
+
+        public event Action<IDevice>? DiscoveredDevice;
 
         private string Sequence => DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString();
 
@@ -219,6 +223,7 @@
                 if (!device!.HasLanControl)
                 {
                     device.LanControl = new LanControlInformation(ipAddress, port, encrypted);
+                    DiscoveredDevice?.Invoke(device);
                 }
 
                 long seq = 0;
