@@ -5,21 +5,23 @@ namespace EWeLink.Api.Models.EventParameters
     public interface IZbCurtainEventParameters
         : ISnZbEventParameters
     {
-        int CurrentPercent { get; set; }
+        int? CurrentPercent { get; set; }
 
-        MotorDirection MotorDirection { get; set; }
+        MotorDirection? MotorDirection { get; set; }
+
+        MotorCalibration? MotorCalibration { get; set; }
     }
 
     [EventDeviceIdentifier(7006, 1514)]
-    public class ZbCurtainEventParameters : SnZbEventParameters
+    public class ZbCurtainEventParameters : SnZbEventParameters, IZbCurtainEventParameters
     {
         [JsonProperty("curPercent")]
-        public int CurrentPercent { get; set; }
+        public int? CurrentPercent { get; set; }
 
         [JsonProperty("motorDir")]
-        public MotorDirection MotorDirection { get; set; }
+        public MotorDirection? MotorDirection { get; set; }
 
         [JsonProperty("motorClb")]
-        public string MotorClb { get; set; }
+        public MotorCalibration? MotorCalibration { get; set; }
     }
 }

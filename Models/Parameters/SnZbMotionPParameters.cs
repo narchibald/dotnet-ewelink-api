@@ -8,6 +8,6 @@
         public int DetectInterval { get; set; }
 
         [JsonProperty("brState")]
-        public string BrState { get; set; } = string.Empty;
+        public IlluminationLevel BrState { get; set; }
     }
 }

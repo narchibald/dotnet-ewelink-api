@@ -25,5 +25,8 @@
   "SN-MG22-ZB06P-01": 1,
   "SN-ESP32D0-POWR3-01": 1,
   "SN-MG21-ZBMICRO-01": 1,
-  "SN-MG22-SWV-01": 1
+  "SN-MG22-SWV-01": 1,
+  "M5-1C":  1,
+  "M5-2C":  2,
+  "M5-3C":  3
 }
