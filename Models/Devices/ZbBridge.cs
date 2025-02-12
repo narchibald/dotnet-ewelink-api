@@ -1,9 +1,6 @@
 ﻿namespace EWeLink.Api.Models.Devices
 {
-    using System;
     using System.Collections.Generic;
-    using System.Text;
-
     using EWeLink.Api.Models.Parameters;
 
     using Newtonsoft.Json;

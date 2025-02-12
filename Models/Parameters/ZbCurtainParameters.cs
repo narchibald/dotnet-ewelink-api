@@ -20,7 +20,7 @@ namespace EWeLink.Api.Models.Parameters
         public MotorDirection MotorDirection { get; set; }
 
         [JsonProperty("motorClb")]
-        public string MotorClb { get; set; }
+        public MotorCalibration MotorCalibration { get; set; }
 
         [JsonProperty("openPercent")]
         public int OpenPercent { get; set; }

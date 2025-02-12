@@ -17,6 +17,9 @@
         [JsonProperty("timeZone")]
         public decimal? TimeZone { get; set; }
 
+        [JsonProperty("subDevRssi")]
+        public int? SubDevRssi { get; set; }
+
         [JsonProperty("trigTime")]
         [JsonConverter(typeof(UnixTimeMillisecondsConverter))]
         public DateTimeOffset? TriggerTime { get; set; }

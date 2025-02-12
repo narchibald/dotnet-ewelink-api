@@ -8,7 +8,7 @@
         public Presence Human { get; set; }
 
         [JsonProperty("brState")]
-        public string BrState { get; set; }
+        public IlluminationLevel BrState { get; set; }
 
         [JsonProperty("judgeTime")]
         public int DetectionDuration { get; set; }

@@ -95,7 +95,7 @@
 
         public Uri OtaUri => new Uri($"https://{this.region}-ota.coolkit.cc:8080/otaother");
 
-        public Uri ApiWebSocketUri => new Uri($"wss://{this.region}-pconnect3.coolkit.cc:8080/api/ws");
+        public Uri ApiWebSocketUri => new Uri($"wss://{this.region}-pconnect3.coolkit.cc/api/ws");
 
         private string AppId => this.configuration.AppId ?? DefaultAppId;
 

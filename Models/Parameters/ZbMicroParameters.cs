@@ -8,7 +8,7 @@ namespace EWeLink.Api.Models.Parameters
         public SwitchState Switch { get; set; }
 
         [JsonProperty("startup")]
-        public SwitchState Startup { get; set; }
+        public StartupState Startup { get; set; }
 
         [JsonProperty("wallPenetration")]
         public bool WallPenetration { get; set; }

@@ -1,14 +1,12 @@
 ﻿namespace EWeLink.Api.Models.Converters
 {
     using System;
-    using System.Linq;
-
     using Newtonsoft.Json;
 
-    public class ThermostatConverter : JsonConverter
+    public class BoolSwitchConverter : JsonConverter
     {
         /// <inheritdoc/>
-        public override bool CanWrite => true;
+        public override bool CanWrite => false;
 
         /// <inheritdoc/>
         public override bool CanRead => true;
@@ -20,22 +18,18 @@
             {
                 writer.WriteNull();
             }
-            else if (value is decimal decimalValue)
+            else if (value is SwitchState state)
             {
-                writer.WriteValue(decimalValue.ToString().Replace(".", string.Empty));
+                writer.WriteValue(state == SwitchState.On);
             }
-            else
-            {
-                writer.WriteNull();
-            }
+
+            throw new NotImplementedException();
         }
 
-        /// <inheritdoc/>
         public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             var nullableType = Nullable.GetUnderlyingType(objectType);
-            string? val = reader.Value as string;
-            if (string.IsNullOrEmpty(val))
+            if (reader.Value is null)
             {
                 if (nullableType == null)
                 {
@@ -45,20 +39,19 @@
                 return null;
             }
 
-            var parsValue = val;
-            if (!val.Contains('.'))
+            bool value = false;
+            if (reader.Value is bool boolVal)
             {
-                parsValue = new string(val.Take(val!.Length - 2).Concat(new[] { '.' }).Concat(val.Skip(val.Length - 2)).ToArray());
+                value = boolVal;
             }
 
-            var value = decimal.Parse(parsValue);
-            return Convert.ChangeType(value, nullableType ?? objectType);
+            return value ? SwitchState.On : SwitchState.Off;
         }
 
-        /// <inheritdoc/>
         public override bool CanConvert(Type objectType)
         {
-            return true;
+            var nullableType = Nullable.GetUnderlyingType(objectType);
+            return (nullableType ?? objectType) == typeof(bool);
         }
     }
 }

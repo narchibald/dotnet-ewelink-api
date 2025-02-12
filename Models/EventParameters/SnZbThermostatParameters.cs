@@ -3,7 +3,7 @@
     using EWeLink.Api.Models.Converters;
     using Newtonsoft.Json;
 
-    public interface ISnZbThermostatParameters
+    public interface ISnZbThermostatEventParameters
         : ISnZbEventParameters
     {
         decimal? Temperature { get; set; }
@@ -12,8 +12,8 @@
     }
 
     [EventDeviceIdentifier(1770, 7014)]
-    public class SnZbThermostatParameters
-        : SnZbEventParameters, ISnZbThermostatParameters
+    public class SnZbThermostatEventParameters
+        : SnZbEventParameters, ISnZbThermostatEventParameters
     {
         [JsonProperty("temperature")]
         [JsonConverter(typeof(ThermostatConverter))]

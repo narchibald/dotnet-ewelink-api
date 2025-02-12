@@ -172,7 +172,7 @@
             }
             catch (HttpRequestException e)
             {
-                this.logger.LogWarning("Switch request failed", e);
+                this.logger.LogWarning(e, "Switch request failed");
             }
 
             return false;

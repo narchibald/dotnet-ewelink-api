@@ -104,6 +104,18 @@
         [JsonProperty("denyFeatures")]
         public string[] DenyFeatures { get; set; }
 
+        [JsonProperty("isSupportGroup")]
+        public bool IsSupportGroup { get; set; }
+
+        [JsonProperty("isSupportedOnMP")]
+        public bool IsSupportedOnMP { get; set; }
+
+        [JsonProperty("isSupportChannelSplit")]
+        public bool IsSupportChannelSplit { get; set; }
+
+        [JsonProperty("deviceFeature")]
+        public DeviceFeature DeviceFeature { get; set; }
+
         // Currently not populated from the fetched API data.
         public bool HasLanControl => this.LanControl != null;
 

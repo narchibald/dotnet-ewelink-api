@@ -70,12 +70,12 @@ namespace EWeLink.Api.Models.Parameters
         public List<string> ScreenList3 { get; set; } = new ();
 
         [JsonProperty("securitySetting1")]
-        public string? SecuritySetting1 { get; set; }
+        public SecuritySetting? SecuritySetting1 { get; set; }
 
         [JsonProperty("securitySetting2")]
-        public string? SecuritySetting2 { get; set; }
+        public SecuritySetting? SecuritySetting2 { get; set; }
 
         [JsonProperty("securitySetting3")]
-        public string? SecuritySetting3 { get; set; }
+        public SecuritySetting? SecuritySetting3 { get; set; }
     }
 }

@@ -52,10 +52,13 @@
   "77": "CKA-DM4-GL",
   "104": "B05-B",
   "162": "M5-3C",
+  "173": "L3-5M-P",
   "181": "TH_ORIGIN",
   "190": "SN-ESP32D0-POWR3-01",
   "195": "NSPANEL_PRO",
   "204": "eWeLink-CUBE",
+  "228": "SN-RK3326S-NSPP-01",
+  "243": "SN-RK1109-ZBBU-01",
   "1001": "BLADELESS_FAN",
   "1002": "NEW_HUMIDIFIER",
   "1003": "WARM_AIR_BLOWER",
@@ -69,4 +72,6 @@
   "7010": "SN-MG21-ZBMICRO-01",
   "7014": "SN-MG22-THMD-01",
   "7016": "SN-MG22-ZB06P-01",
+  "7018": "NON-OTA-GL",
+  "7027": "SN-MG22-SWV-01"
 }
